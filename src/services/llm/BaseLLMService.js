@@ -44,19 +44,31 @@ export class BaseLLMService {
     throw new Error('fetchModels must be implemented by provider');
   }
 
-  async sendMessage(messages, options = {}) {
+  async sendMessage(messages, options = {}, onUpdate = null) {
     if (!this.axios || !this.config) {
       throw new Error('Service not initialized. Call initialize() first.');
     }
     
     try {
       store.dispatch(createLog(`Sending message to ${this.provider}`, 'debug'));
-      const response = await this.formatAndSendRequest(messages, options);
-      return this.parseResponse(response);
+      if (onUpdate) {
+        // Streaming mode
+        const response = await this.formatAndSendStreamingRequest(messages, options, onUpdate);
+        return response;
+      } else {
+        // Non-streaming mode
+        const response = await this.formatAndSendRequest(messages, options);
+        return this.parseResponse(response);
+      }
     } catch (error) {
       store.dispatch(createLog(`Error in ${this.provider} service: ${error.message}`, 'error'));
       throw error;
     }
+  }
+
+  // This method should be implemented by providers that support streaming
+  async formatAndSendStreamingRequest(messages, options, onUpdate) {
+    throw new Error('formatAndSendStreamingRequest must be implemented by provider');
   }
 
   // These methods should be implemented by each provider

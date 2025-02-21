@@ -31,10 +31,6 @@ class LLMServiceFactory {
   async initializeService(provider, apiKey = '') {
     const normalizedProvider = provider.toLowerCase();
     
-    if (this.initialized[normalizedProvider]) {
-      return this.getService(normalizedProvider);
-    }
-
     try {
       const service = this.getService(normalizedProvider);
       
@@ -50,7 +46,6 @@ class LLMServiceFactory {
         service.initialize(envKey);
       }
 
-      this.initialized[normalizedProvider] = true;
       store.dispatch(createLog(`Initialized ${provider} service`, 'debug'));
       return service;
     } catch (error) {

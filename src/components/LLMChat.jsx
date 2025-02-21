@@ -10,7 +10,8 @@ import {
   setTemperature,
   setSystemInstructions,
   setProvider,
-  setModel
+  setModel,
+  setStreamingEnabled
 } from '../redux/slices/llmSlice';
 import llmServiceFactory from '../services/llm';
 import {
@@ -29,7 +30,8 @@ import {
   DialogActions,
   Button,
   Slider,
-  Stack
+  Stack,
+  Switch
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -137,26 +139,64 @@ const LLMChat = () => {
     setInput('');
 
     try {
+      let streamedContent = '';
       let assistantMessage = { role: 'assistant', content: <ProgressText text="Thinking..." /> };
       setMessages(prev => [...prev, assistantMessage]);
 
       const service = await llmServiceFactory.initializeService(selectedProvider);
-      const response = await service.sendMessage(
-        [
-          { role: 'system', content: llmSettings.systemInstructions },
-          ...messages,
-          newMessage
-        ],
-        {
-          model: selectedModel,
-          temperature: llmSettings.temperature
-        }
-      );
+      
+      if (llmSettings.streamingEnabled) {
+        // Handle streaming updates
+        let streamedContent = '';
+        const handleStreamUpdate = (chunk) => {
+          streamedContent += chunk;
+          setMessages(prev => {
+            const lastMessage = prev[prev.length - 1];
+            // Only update if the content has changed
+            if (lastMessage.content !== streamedContent) {
+              return [
+                ...prev.slice(0, -1),
+                {
+                  role: 'assistant',
+                  content: streamedContent
+                }
+              ];
+            }
+            return prev;
+          });
+        };
 
-      setMessages(prev => [...prev.slice(0, -1), {
-        role: 'assistant',
-        content: response.content
-      }]);
+        await service.sendMessage(
+          [
+            { role: 'system', content: llmSettings.systemInstructions },
+            ...messages,
+            newMessage
+          ],
+          {
+            model: selectedModel,
+            temperature: llmSettings.temperature
+          },
+          handleStreamUpdate
+        );
+      } else {
+        // Non-streaming mode
+        const response = await service.sendMessage(
+          [
+            { role: 'system', content: llmSettings.systemInstructions },
+            ...messages,
+            newMessage
+          ],
+          {
+            model: selectedModel,
+            temperature: llmSettings.temperature
+          }
+        );
+
+        setMessages(prev => [...prev.slice(0, -1), {
+          role: 'assistant',
+          content: response.content
+        }]);
+      }
 
     } catch (err) {
       console.error('Error in chat completion:', err);
@@ -420,24 +460,35 @@ const LLMChat = () => {
               }}
             />
             
-            <Box>
-              <Typography gutterBottom>Temperature: {llmSettings.temperature}</Typography>
-              <Slider
-                value={llmSettings.temperature}
-                onChange={(e, value) => dispatch(setTemperature(value))}
-                min={0}
-                max={2}
-                step={0.1}
-                marks={[
-                  { value: 0, label: '0' },
-                  { value: 1, label: '1' },
-                  { value: 2, label: '2' }
-                ]}
-                sx={{
-                  color: 'primary.main'
-                }}
-              />
-            </Box>
+            <Stack spacing={2}>
+              <Box>
+                <Typography gutterBottom>Temperature: {llmSettings.temperature}</Typography>
+                <Slider
+                  value={llmSettings.temperature}
+                  onChange={(e, value) => dispatch(setTemperature(value))}
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  marks={[
+                    { value: 0, label: '0' },
+                    { value: 1, label: '1' },
+                    { value: 2, label: '2' }
+                  ]}
+                  sx={{
+                    color: 'primary.main'
+                  }}
+                />
+              </Box>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography>Enable Streaming</Typography>
+                <Switch
+                  checked={llmSettings.streamingEnabled}
+                  onChange={(e) => dispatch(setStreamingEnabled(e.target.checked))}
+                  color="primary"
+                />
+              </Box>
+            </Stack>
           </Stack>
         </DialogContent>
         <DialogActions>
