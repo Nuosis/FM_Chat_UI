@@ -1,13 +1,51 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ThemeProvider, createTheme, CssBaseline, Box, useMediaQuery } from '@mui/material';
 import { Provider, useDispatch } from 'react-redux';
 import { store } from './redux/store';
 import { performFMScript, handleFMScriptResult } from './utils/filemaker';
 import { setSchema, createLog, LogType } from './redux/slices/appSlice';
 import LLMChat from './components/LLMChat';
+import Spinner from './components/Spinner';
 
 const AppContent = () => {
   const dispatch = useDispatch();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSchema = async () => {
+      try {
+        dispatch(createLog('Fetching schema...', LogType.INFO));
+        const request = {action: 'requestSchema'}
+        const result = await performFMScript(request);
+        const schema = handleFMScriptResult(result);
+        console.log({schema})
+        dispatch(setSchema(schema));
+        dispatch(createLog('Schema loaded successfully', LogType.SUCCESS));
+      } catch (error) {
+        console.error('Error fetching schema:', error);
+        dispatch(createLog(`Failed to fetch schema: ${error.message}`, LogType.ERROR));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSchema();
+  }, [dispatch]);
+
+  return (
+    <Box sx={{ minHeight: '100vh', display: 'flex' }}>
+      {isLoading ? (
+        <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Spinner size={60} />
+        </Box>
+      ) : (
+        <LLMChat />
+      )}
+    </Box>
+  );
+};
+
+function App() {
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
 
   const theme = useMemo(() => 
@@ -58,37 +96,12 @@ const AppContent = () => {
     [prefersDarkMode]
   );
 
-  useEffect(() => {
-    const fetchSchema = async () => {
-      try {
-        dispatch(createLog('Fetching schema...', LogType.INFO));
-        const result = await performFMScript('Request_Schema');
-        const schema = handleFMScriptResult(result);
-        dispatch(setSchema(schema));
-        dispatch(createLog('Schema loaded successfully', LogType.SUCCESS));
-      } catch (error) {
-        console.error('Error fetching schema:', error);
-        dispatch(createLog(`Failed to fetch schema: ${error.message}`, LogType.ERROR));
-      }
-    };
-
-    fetchSchema();
-  }, [dispatch]);
-
-  return (
-    <ThemeProvider theme={theme}>
-      <Box sx={{ minHeight: '100vh', display: 'flex' }}>
-        <LLMChat />
-      </Box>
-    </ThemeProvider>
-  );
-};
-
-function App() {
   return (
     <Provider store={store}>
-      <CssBaseline />
-      <AppContent />
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AppContent />
+      </ThemeProvider>
     </Provider>
   );
 }

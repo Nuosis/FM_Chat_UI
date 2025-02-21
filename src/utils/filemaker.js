@@ -47,6 +47,7 @@ export const performFMScript = async ({
 
   // If FMGofer is available, use it (promise-based)
   if (typeof FMGofer !== 'undefined') {
+    console.log("FMGofer calling ... ",script,parameter)
     return FMGofer.PerformScript(script, parameter)
       .then(result => handleFMScriptResult(result))
       .catch(error => {
@@ -58,6 +59,7 @@ export const performFMScript = async ({
   // Otherwise use FileMaker object (callback-based)
   return new Promise((resolve, reject) => {
     try {
+      console.log("FileMaker calling ... ",script,parameter)
       FileMaker.PerformScript(script, parameter);
       // Note: Since FileMaker.PerformScript is not promise-based,
       // the actual response will need to be handled via a callback
@@ -80,7 +82,9 @@ export const handleFMScriptResult = (result) => {
     if (!result) {
       throw new Error('Empty result from FileMaker');
     }
-    const parsedResult = JSON.parse(result);
+    // Handle both JSON strings and objects
+    const parsedResult = typeof result === 'string' ? JSON.parse(result) : result;
+    console.log("call result: ", parsedResult);
     
     // Check for FileMaker errors
     if (parsedResult.error) {
