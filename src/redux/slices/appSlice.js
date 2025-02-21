@@ -8,7 +8,8 @@ export const LogType = {
 };
 
 const initialState = {
-  logs: []
+  logs: [],
+  schema: null
 };
 
 const appSlice = createSlice({
@@ -26,9 +27,12 @@ const appSlice = createSlice({
     },
     clearLogs: (state) => {
       state.logs = [];
+    },
+    setSchema: (state, action) => {
+      state.schema = action.payload;
     }
   }
 });
 
-export const { createLog, clearLogs } = appSlice.actions;
+export const { createLog, clearLogs, setSchema } = appSlice.actions;
 export default appSlice.reducer;

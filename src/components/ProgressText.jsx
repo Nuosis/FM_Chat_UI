@@ -17,13 +17,21 @@ const ProgressText = ({ progress, text = 'Thinking' }) => {
   const gradientColor = theme.palette.secondary.main;
 
   return (
-    <Box sx={{ display: 'inline-block' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        width: '100%',
+        py: 4
+      }}
+    >
       <Typography
-        variant="h6"
+        variant="h4"
         sx={{
-          background: `linear-gradient(90deg, 
-            ${theme.palette.text.primary} 25%, 
-            ${gradientColor} 50%, 
+          background: `linear-gradient(90deg,
+            ${theme.palette.text.primary} 25%,
+            ${gradientColor} 50%,
             ${theme.palette.text.primary} 75%
           )`,
           backgroundSize: '200% auto',
@@ -31,7 +39,8 @@ const ProgressText = ({ progress, text = 'Thinking' }) => {
           WebkitBackgroundClip: 'text',
           backgroundClip: 'text',
           animation: `${shimmer} 3.5s linear infinite`,
-          fontWeight: 'medium',
+          fontWeight: 'light',
+          letterSpacing: '0.05em',
           minWidth: '4em',
           textAlign: 'center'
         }}

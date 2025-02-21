@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Snackbar, Slide } from '@mui/material';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ProgressText from './ProgressText';
 import { createLog, LogType } from '../redux/slices/appSlice';
 import {
@@ -271,10 +274,72 @@ const LLMChat = () => {
                 p: 1.5,
                 bgcolor: message.role === 'user' ? 'primary.main' : 'background.paper',
                 color: message.role === 'user' ? 'primary.contrastText' : 'text.primary',
-                borderRadius: 2
+                borderRadius: 2,
+                '& p': {
+                  m: 0,
+                  mb: 1,
+                  '&:last-child': {
+                    mb: 0
+                  }
+                },
+                '& pre': {
+                  m: 0,
+                  p: 0,
+                  '& > div': {
+                    m: '0.5em -1.5em',
+                    borderRadius: 1
+                  }
+                },
+                '& code': {
+                  p: '0.2em 0.4em',
+                  borderRadius: 1,
+                  bgcolor: message.role === 'user' ? 'primary.dark' : 'action.hover',
+                  color: message.role === 'user' ? 'primary.contrastText' : 'text.primary'
+                },
+                '& a': {
+                  color: message.role === 'user' ? 'primary.contrastText' : 'primary.main',
+                  textDecoration: 'none',
+                  '&:hover': {
+                    textDecoration: 'underline'
+                  }
+                },
+                '& ul, & ol': {
+                  m: 0,
+                  mb: 1,
+                  pl: 3,
+                  '&:last-child': {
+                    mb: 0
+                  }
+                }
               }}
             >
-              <Typography>{message.content}</Typography>
+              {typeof message.content === 'string' ? (
+                <ReactMarkdown
+                  components={{
+                    code({ node, inline, className, children, ...props }) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      return !inline && match ? (
+                        <SyntaxHighlighter
+                          style={vscDarkPlus}
+                          language={match[1]}
+                          PreTag="div"
+                          {...props}
+                        >
+                          {String(children).replace(/\n$/, '')}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    }
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
+              ) : (
+                message.content
+              )}
             </Paper>
           </Box>
         ))}
