@@ -1,25 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
 import axiosLLM from '../axiosLLM';
+import { store } from '../../../redux/store';
 
 // Mock axios
 vi.mock('axios', () => ({
   default: {
     create: vi.fn(() => ({
       interceptors: {
-        request: {
-          use: vi.fn((successFn) => {
-            // Store the interceptor function for testing
-            requestInterceptor = successFn;
-          })
-        },
-        response: {
-          use: vi.fn((successFn, errorFn) => {
-            // Store the interceptor functions for testing
-            responseInterceptor = successFn;
-            errorInterceptor = errorFn;
-          })
-        }
+        request: { use: vi.fn() },
+        response: { use: vi.fn() }
       },
       post: vi.fn(),
       get: vi.fn()
@@ -27,100 +17,135 @@ vi.mock('axios', () => ({
   }
 }));
 
-// Store interceptors for testing
-let requestInterceptor;
-let responseInterceptor;
-let errorInterceptor;
+// Mock redux store
+const { mockDispatch } = vi.hoisted(() => {
+  return { mockDispatch: vi.fn() };
+});
+
+vi.mock('../../../redux/store', () => ({
+  store: {
+    dispatch: mockDispatch
+  }
+}));
 
 describe('axiosLLM', () => {
+  let instance;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset interceptors
-    requestInterceptor = null;
-    responseInterceptor = null;
-    errorInterceptor = null;
+    instance = axiosLLM();
   });
 
-  it('should create axios instance with correct base URL', () => {
+  it('should create axios instance with 2 minute timeout', () => {
     expect(axios.create).toHaveBeenCalledWith({
-      baseURL: expect.stringContaining('/api'),
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      timeout: 120000
     });
   });
 
   describe('Request Interceptor', () => {
-    it('should handle request configuration', async () => {
+    it('should log request details', async () => {
       const config = {
-        data: {
-          apiKey: 'test-key',
-          someData: 'test'
-        }
+        method: 'post',
+        url: '/test',
+        headers: { 'Content-Type': 'application/json' }
       };
 
-      const result = await requestInterceptor(config);
-      expect(result.headers['Authorization']).toBe('Bearer test-key');
-      expect(result.data.apiKey).toBeUndefined();
-      expect(result.data.someData).toBe('test');
+      // Call the request interceptor
+      const [successFn] = instance.interceptors.request.use.mock.calls[0];
+      const result = await successFn(config);
+
+      expect(result).toEqual(config);
+      expect(store.dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.stringContaining('LLM Request: POST /test')
+        })
+      );
     });
 
-    it('should handle missing apiKey', async () => {
-      const config = {
-        data: {
-          someData: 'test'
-        }
-      };
-
-      await expect(requestInterceptor(config)).rejects.toThrow('API key is required');
+    it('should log request errors', async () => {
+      const error = new Error('Test error');
+      
+      // Call the request error handler
+      const [, errorFn] = instance.interceptors.request.use.mock.calls[0];
+      await expect(errorFn(error)).rejects.toThrow('Test error');
+      
+      expect(store.dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.stringContaining('LLM Request Error: Test error')
+        })
+      );
     });
   });
 
   describe('Response Interceptor', () => {
-    it('should handle successful response', async () => {
+    it('should log successful responses', async () => {
       const response = {
-        data: {
-          success: true,
-          data: 'test'
+        config: {
+          method: 'get',
+          url: '/test'
+        },
+        data: { success: true }
+      };
+
+      // Call the response interceptor
+      const [successFn] = instance.interceptors.response.use.mock.calls[0];
+      const result = await successFn(response);
+
+      expect(result).toEqual(response);
+      expect(store.dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.stringContaining('LLM Response Success: GET /test')
+        })
+      );
+    });
+
+    it('should handle timeout errors', async () => {
+      const error = {
+        code: 'ECONNABORTED',
+        message: 'timeout',
+        config: {
+          method: 'post',
+          url: '/test'
         }
       };
 
-      const result = await responseInterceptor(response);
-      expect(result).toEqual(response);
+      // Call the response error handler
+      const [, errorFn] = instance.interceptors.response.use.mock.calls[0];
+      await expect(errorFn(error)).rejects.toThrow('LLM request timed out after 2 minutes');
+      
+      expect(store.dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.stringContaining('LLM request timed out after 2 minutes')
+        })
+      );
     });
 
-    it('should handle error response', async () => {
+    it('should log error details', async () => {
       const error = {
         response: {
-          data: {
-            error: {
-              message: 'Test error'
-            }
+          status: 500,
+          data: { message: 'Test error' },
+          config: {
+            method: 'get',
+            url: '/test'
           }
-        }
+        },
+        config: {
+          method: 'get',
+          url: '/test'
+        },
+        message: 'Test error'
       };
 
-      await expect(errorInterceptor(error)).rejects.toThrow('Test error');
-    });
-
-    it('should handle network error', async () => {
-      const error = new Error('Network Error');
-      error.code = 'ECONNREFUSED';
-
-      await expect(errorInterceptor(error)).rejects.toThrow('Unable to connect to the server');
-    });
-
-    it('should handle timeout error', async () => {
-      const error = new Error('Timeout');
-      error.code = 'ECONNABORTED';
-
-      await expect(errorInterceptor(error)).rejects.toThrow('Request timed out');
-    });
-
-    it('should handle unknown error', async () => {
-      const error = new Error('Unknown error');
-
-      await expect(errorInterceptor(error)).rejects.toThrow('Unknown error');
+      // Call the response error handler
+      const [, errorFn] = instance.interceptors.response.use.mock.calls[0];
+      await expect(errorFn(error)).rejects.toEqual(error);
+      
+      expect(store.dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          payload: expect.stringContaining('LLM Error Details')
+        })
+      );
     });
   });
 
