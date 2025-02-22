@@ -53,6 +53,27 @@ const LLMChat = () => {
     setInput('');
 
     try {
+      // Check if user is asking about available tools
+      if (input.toLowerCase().includes('what tools') ||
+          input.toLowerCase().includes('available tools')) {
+        const service = llmServiceFactory.getService(llmSettings.provider);
+        const tools = service.getTools();
+        
+        if (tools.length > 0) {
+          const toolList = tools.map(t => `- ${t.name}: ${t.description}`).join('\n');
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: `Available tools:\n${toolList}`
+          }]);
+        } else {
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: 'No tools are currently available.'
+          }]);
+        }
+        return;
+      }
+
       let assistantMessage = { role: 'assistant', content: <ProgressText text="Thinking..." /> };
       setMessages(prev => [...prev, assistantMessage]);
 
@@ -61,7 +82,10 @@ const LLMChat = () => {
       // Log the request
       const requestPayload = {
         messages: [
-          { role: 'system', content: llmSettings.systemInstructions },
+          {
+            role: 'system',
+            content: `You are a helpful AI assistant. When asked about available tools, you must ONLY list the locally registered tools using the getTools() method. Do not list any other tools. Current system instructions: ${llmSettings.systemInstructions}`
+          },
           ...messages,
           newMessage
         ],

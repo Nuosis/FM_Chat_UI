@@ -139,4 +139,15 @@ export class BaseLLMService {
   parseResponse(response) {
     throw new Error('parseResponse must be implemented by provider');
   }
+
+  /**
+   * Returns an array of registered tools with their names and descriptions
+   * @returns {Array<{name: string, description: string}>}
+   */
+  getTools() {
+    return Object.keys(this.toolsRegistry).map(name => ({
+      name,
+      description: this.toolsRegistry[name].description || ''
+    }));
+  }
 }
