@@ -11,7 +11,6 @@ export class OpenAIService extends BaseLLMService {
       { headers: this.config.headers }
     );
 
-    // Filter for only chat models
     const chatModels = response.data.data
       .filter(model => model.id.includes('gpt'))
       .filter(model => !model.id.includes('instruct'))
@@ -21,7 +20,11 @@ export class OpenAIService extends BaseLLMService {
   }
 
   async formatAndSendRequest(messages, options = {}) {
-    const { model = import.meta.env.VITE_DEFAULT_MODEL } = options;
+    const { 
+      model = import.meta.env.VITE_DEFAULT_MODEL, 
+      temperature = 0.7,
+      tools 
+    } = options;
 
     const formattedMessages = messages.map(msg => ({
       role: msg.role || 'user',
@@ -30,7 +33,10 @@ export class OpenAIService extends BaseLLMService {
 
     const requestData = {
       model,
-      messages: formattedMessages
+      messages: formattedMessages,
+      temperature,
+      ...(tools && tools.length > 0 && { tools }),
+      tool_choice: tools && tools.length > 0 ? 'auto' : undefined
     };
 
     return this.axios.post(
@@ -46,10 +52,12 @@ export class OpenAIService extends BaseLLMService {
       throw new Error('No response from OpenAI');
     }
 
+    const message = choices[0].message;
     return {
-      content: choices[0].message.content,
-      role: choices[0].message.role,
+      content: message.content,
+      role: message.role,
       provider: this.provider,
+      tool_calls: message.tool_calls,
       raw: response.data
     };
   }

@@ -1,62 +1,130 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ThemeProvider, createTheme, CssBaseline, Box, useMediaQuery } from '@mui/material';
-import { Provider, useDispatch } from 'react-redux';
+import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store } from './redux/store';
-import { performFMScript, handleFMScriptResult } from './utils/filemaker';
+import { performFMScript, handleFMScriptResult, inFileMaker } from './utils/filemaker';
 import { setSchema, createLog, LogType } from './redux/slices/appSlice';
+import { setInitialized, setInitError, setRegisteredTools } from './redux/slices/llmSlice';
 import Header from './components/Header';
 import LLMChat from './components/LLMChat';
-import LLMAgent from './components/LLMAgent';
+import Log from './components/Log';
 import Spinner from './components/Spinner';
+import llmServiceFactory from './services/llm';
+import { registerTools } from './services/llm/tools';
 
 const AppContent = () => {
   const dispatch = useDispatch();
+  const llmSettings = useSelector(state => state.llm);
   const [isLoading, setIsLoading] = useState(true);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(true);
   const [activeComponent, setActiveComponent] = useState('LLMChat');
+  const [logOpen, setLogOpen] = useState(false);
 
   useEffect(() => {
-    const fetchSchema = async () => {
+    const initialize = async () => {
       try {
-        dispatch(createLog('Fetching schema...', LogType.INFO));
-        const request = {action: 'requestSchema'}
-        const result = await performFMScript(request);
-        const schema = handleFMScriptResult(result);
-        console.log({schema})
-        dispatch(setSchema(schema));
-        dispatch(createLog('Schema loaded successfully', LogType.SUCCESS));
+        console.log('Starting initialization with settings:', JSON.stringify(llmSettings, null, 2));
+        
+        // Only fetch schema if we're in FileMaker
+        if (inFileMaker) {
+          dispatch(createLog('Fetching schema...', LogType.INFO));
+          const request = {action: 'requestSchema'}
+          const result = await performFMScript(request);
+          const schema = handleFMScriptResult(result);
+          dispatch(setSchema(schema));
+          dispatch(createLog('Schema loaded successfully', LogType.SUCCESS));
+        } else {
+          dispatch(createLog('Running in standalone mode (no FileMaker)', LogType.INFO));
+        }
+
+        // Check for OpenAI API key
+        if (llmSettings.provider === 'openai' && !import.meta.env.VITE_OPENAI_API_KEY) {
+          throw new Error('OpenAI API key not found. Please set VITE_OPENAI_API_KEY environment variable.');
+        }
+
+        // Initialize LLM service if provider is set and not initialized
+        if (llmSettings.provider && !llmSettings.isInitialized) {
+          console.log('Initializing LLM service for provider:', llmSettings.provider);
+          dispatch(createLog(`Initializing ${llmSettings.provider} service...`, LogType.INFO));
+          const service = await llmServiceFactory.initializeService(llmSettings.provider);
+          console.log('Service initialized:', service?.provider || 'unknown');
+          
+          // Register tools
+          dispatch(createLog('Registering tools...', LogType.INFO));
+          console.log('Starting tool registration');
+          const toolRegistration = await registerTools(service);
+          console.log('Tool registration result:', JSON.stringify(toolRegistration, null, 2));
+          dispatch(setRegisteredTools(toolRegistration));
+          
+          if (toolRegistration.success) {
+            dispatch(createLog(`Registered ${toolRegistration.toolCount} tools successfully`, LogType.SUCCESS));
+          } else {
+            dispatch(createLog(`Partial tool registration: ${toolRegistration.error}`, LogType.WARNING));
+          }
+          
+          dispatch(setInitialized());
+          dispatch(createLog(`${llmSettings.provider} service initialized`, LogType.SUCCESS));
+          console.log('Service initialization complete');
+        }
+
+        // Stop loading if we have a provider
+        if (llmSettings.provider) {
+          console.log('Initialization successful, stopping loading');
+          setIsLoading(false);
+        }
       } catch (error) {
-        console.error('Error fetching schema:', error);
-        dispatch(createLog(`Failed to fetch schema: ${error.message}`, LogType.ERROR));
-      } finally {
+        console.error('Initialization error:', error);
+        dispatch(createLog(`Initialization error: ${error.message}`, LogType.ERROR));
+        dispatch(setInitError(error.message));
         setIsLoading(false);
       }
     };
 
-    fetchSchema();
-  }, [dispatch]);
-return (
-  <Box sx={{ display: 'flex' }}>
-    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-      <Header
-        isCollapsed={isHeaderCollapsed}
-        onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
-        setActiveComponent={setActiveComponent}
-        activeComponent={activeComponent}
-      />
-      {isLoading ? (
-        <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Spinner size={60} />
-        </Box>
-      ) : (
-        <>
-          {activeComponent === 'LLMChat' && <LLMChat />}
-          {activeComponent === 'LLMAgent' && <LLMAgent />}
-        </>
-      )}
+    initialize();
+  }, [dispatch, llmSettings.provider]); // Only re-run when provider changes
+
+  if (isLoading) {
+    return (
+      <Box sx={{ 
+        width: '100vw', 
+        height: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        bgcolor: 'background.default'
+      }}>
+        <Spinner size={60} />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ 
+      width: '100%',
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      bgcolor: 'background.default',
+      color: 'text.primary'
+    }}>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Header
+          isCollapsed={isHeaderCollapsed}
+          onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+          setActiveComponent={(component) => {
+            if (component === 'Log') {
+              setLogOpen(true);
+            } else {
+              setActiveComponent(component);
+            }
+          }}
+          activeComponent={activeComponent}
+        />
+        {activeComponent === 'LLMChat' && <LLMChat />}
+        <Log open={logOpen} onClose={() => setLogOpen(false)} />
+      </Box>
     </Box>
-  </Box>
-);
+  );
 };
 
 function App() {

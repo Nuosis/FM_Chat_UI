@@ -19,7 +19,8 @@ import {
   Button,
   Slider,
   Stack,
-  Typography
+  Typography,
+  Alert
 } from '@mui/material';
 import { Send as SendIcon, Settings as SettingsIcon } from '@mui/icons-material';
 
@@ -45,7 +46,7 @@ const LLMChat = () => {
   }, [messages]);
 
   const handleSubmit = async () => {
-    if (!input.trim() || !llmSettings.provider || !llmSettings.model) return;
+    if (!input.trim()) return;
 
     const newMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, newMessage]);
@@ -55,19 +56,51 @@ const LLMChat = () => {
       let assistantMessage = { role: 'assistant', content: <ProgressText text="Thinking..." /> };
       setMessages(prev => [...prev, assistantMessage]);
 
-      const service = await llmServiceFactory.initializeService(llmSettings.provider);
+      const service = llmServiceFactory.getService(llmSettings.provider);
       
-      const response = await service.sendMessage(
-        [
+      // Log the request
+      const requestPayload = {
+        messages: [
           { role: 'system', content: llmSettings.systemInstructions },
           ...messages,
           newMessage
         ],
+        model: llmSettings.model,
+        temperature: llmSettings.temperature
+      };
+      
+      dispatch(createLog(
+        `LLM Request:\n${JSON.stringify(requestPayload, null, 2)}`,
+        LogType.INFO
+      ));
+      
+      const startTime = Date.now();
+      const response = await service.sendMessage(
+        requestPayload.messages,
         {
-          model: llmSettings.model,
-          temperature: llmSettings.temperature
+          model: requestPayload.model,
+          temperature: requestPayload.temperature
+        },
+        (progressText) => {
+          if (progressText !== null && progressText !== undefined) {
+            setMessages(prev => [
+              ...prev.slice(0, -1),
+              {
+                role: 'assistant',
+                content: <ProgressText text={progressText} />
+              }
+            ]);
+          }
         }
       );
+      
+      const processingTime = Date.now() - startTime;
+      
+      // Log the response
+      dispatch(createLog(
+        `LLM Response (${processingTime}ms):\n${JSON.stringify(response, null, 2)}`,
+        LogType.INFO
+      ));
 
       setMessages(prev => [...prev.slice(0, -1), {
         role: 'assistant',
@@ -77,6 +110,7 @@ const LLMChat = () => {
     } catch (err) {
       console.error('Error in chat completion:', err);
       dispatch(createLog(`Chat completion error: ${err.message}`, LogType.ERROR));
+      setError(err.message);
       setMessages(prev => [...prev.slice(0, -1), {
         role: 'assistant',
         content: `Error: ${err.message}. Please try again.`
@@ -99,6 +133,12 @@ const LLMChat = () => {
         }
       }
     }}>
+      {llmSettings.registeredTools.error && (
+        <Alert severity="warning" sx={{ m: 2 }}>
+          Some tools failed to register: {llmSettings.registeredTools.error}
+        </Alert>
+      )}
+      
       <Snackbar
         open={Boolean(error)}
         autoHideDuration={3000}
@@ -239,7 +279,7 @@ const LLMChat = () => {
           />
           <IconButton 
             onClick={handleSubmit}
-            disabled={!input.trim() || !llmSettings.provider || !llmSettings.model}
+            disabled={!input.trim()}
             color="primary"
             sx={{
               bgcolor: 'background.paper',
@@ -301,7 +341,6 @@ const LLMChat = () => {
                   }}
                 />
               </Box>
-              
             </Stack>
           </Stack>
         </DialogContent>

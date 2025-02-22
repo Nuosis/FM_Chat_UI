@@ -1,16 +1,23 @@
-import FMGofer from 'fm-gofer';
-
-/**
- * Utility for handling FileMaker script calls
- */
-
 // Type checking for FileMaker environment
 const isInFileMaker = () => {
-  return typeof FileMaker !== 'undefined' || typeof FMGofer !== 'undefined';
+  return typeof window !== 'undefined' && (typeof window.FileMaker !== 'undefined' || typeof window.FMGofer !== 'undefined');
 };
 
+// Export the flag for checking FileMaker environment
+export const inFileMaker = isInFileMaker();
+
+// Only import FMGofer if we're in FileMaker
+let FMGofer;
+if (inFileMaker) {
+  import('fm-gofer').then(module => {
+    FMGofer = module.default;
+  }).catch(error => {
+    console.error('Failed to load FMGofer:', error);
+  });
+}
+
 // Valid actions for FileMaker operations
-const VALID_ACTIONS = ['read', 'update', 'create', 'requestSchema'];
+const VALID_ACTIONS = ['read', 'update', 'create', 'requestSchema', 'script'];
 
 /**
  * Promisified version of FileMaker.PerformScript
@@ -26,28 +33,27 @@ export const performFMScript = async ({
   scriptParam = {}
 }) => {
   // Validate environment
-  if (!isInFileMaker()) {
+  if (!inFileMaker) {
     throw new Error('Not in FileMaker environment');
   }
 
-  // Validate action
-  if (!action) {
-    throw new Error('Action is required for FileMaker script execution');
-  }
-  if (!VALID_ACTIONS.includes(action)) {
+  // Skip parameter preparation for ai * tools script
+  const parameter = script === 'ai * tools'
+    ? '' // No parameters for ai * tools
+    : JSON.stringify({
+        ...(action && { action }), // Only include action if provided
+        ...scriptParam,
+        version: "vLatest"
+      });
+
+  // Skip action validation for direct script calls
+  if (action && !VALID_ACTIONS.includes(action)) {
     throw new Error(`Invalid action: ${action}. Must be one of: ${VALID_ACTIONS.join(', ')}`);
   }
 
-  // Prepare script parameters
-  const parameter = JSON.stringify({
-    action,
-    ...scriptParam,
-    version: "vLatest"
-  });
-
   // If FMGofer is available, use it (promise-based)
-  if (typeof FMGofer !== 'undefined') {
-    console.log("FMGofer calling ... ",script,parameter)
+  if (FMGofer) {
+    console.log("FMGofer calling ... ", script, parameter);
     return FMGofer.PerformScript(script, parameter)
       .then(result => handleFMScriptResult(result))
       .catch(error => {
@@ -59,7 +65,7 @@ export const performFMScript = async ({
   // Otherwise use FileMaker object (callback-based)
   return new Promise((resolve, reject) => {
     try {
-      console.log("FileMaker calling ... ",script,parameter)
+      console.log("FileMaker calling ... ", script, parameter);
       FileMaker.PerformScript(script, parameter);
       // Note: Since FileMaker.PerformScript is not promise-based,
       // the actual response will need to be handled via a callback
@@ -100,6 +106,3 @@ export const handleFMScriptResult = (result) => {
     throw error;
   }
 };
-
-// Export a flag for checking FileMaker environment
-export const inFileMaker = isInFileMaker();

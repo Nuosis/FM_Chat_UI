@@ -40,23 +40,25 @@ export class OllamaService extends BaseLLMService {
       }
     };
 
-    return this.axios.post(
+    const response = await this.axios.post(
       this.config.endpoint,
       requestData,
       { headers: this.config.headers }
     );
+
+    return response.data;
   }
 
-  parseResponse(finalContent) {
-    if (!finalContent) {
-      throw new Error('No response from Ollama');
+  parseResponse(response) {
+    if (!response || !response.message) {
+      throw new Error('Invalid response from Ollama');
     }
 
     return {
-      content: finalContent,
+      content: response.message.content,
       role: 'assistant',
       provider: this.provider,
-      raw: { message: { content: finalContent, role: 'assistant' } }
+      raw: response
     };
   }
 }

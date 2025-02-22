@@ -32,7 +32,7 @@ import llmServiceFactory from '../services/llm';
 const Header = ({ isCollapsed, onToggleCollapse, setActiveComponent, activeComponent }) => {
   const dispatch = useDispatch();
   const llmSettings = useSelector(state => state.llm);
-  const components = ['LLMChat', 'LLMAgent'];
+  const components = ['LLMChat', 'Log'];
   const [providers] = useState(() => {
     const factory = llmServiceFactory;
     return Object.entries(factory.services).map(([key, service]) => ({
@@ -106,7 +106,11 @@ const Header = ({ isCollapsed, onToggleCollapse, setActiveComponent, activeCompo
 
   const handleModelChange = (event) => {
     const model = event.target.value;
-    dispatch(setModel(model));
+    if (models.includes(model)) {
+      dispatch(setModel(model));
+    } else {
+      dispatch(setModel(''));
+    }
   };
 
   return (
@@ -173,7 +177,7 @@ const Header = ({ isCollapsed, onToggleCollapse, setActiveComponent, activeCompo
           <FormControl sx={{ minWidth: 200 }}>
             <InputLabel>Model</InputLabel>
             <Select
-              value={llmSettings.model || ''}
+              value={models.includes(llmSettings.model) ? llmSettings.model : ''}
               label="Model"
               onChange={handleModelChange}
               disabled={!llmSettings.provider || isLoadingModels}
