@@ -20,9 +20,9 @@ export const PROVIDERS = {
       'anthropic-version': '2023-06-01'
     },
     models: [
-      'claude-3-opus-20240229',
-      'claude-3-sonnet-20240229',
-      'claude-2.1'
+      'claude-3-5-sonnet-latest',
+      'claude-3-5-haiku-latest',
+      'claude-3-opus-latest1'
     ]
   },
   DEEPSEEK: {
@@ -34,7 +34,7 @@ export const PROVIDERS = {
     },
     models: [
       'deepseek-chat',
-      'deepseek-coder'
+      'deepseek-reasoner'
     ]
   },
   OLLAMA: {

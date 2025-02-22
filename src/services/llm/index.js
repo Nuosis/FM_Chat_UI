@@ -46,6 +46,11 @@ class LLMServiceFactory {
         service.initialize(envKey);
       }
 
+      // Import and register tools
+      const { registerTools } = await import('./tools');
+      const result = await registerTools(service);
+      store.dispatch(createLog(`Registered ${result.toolCount} tools for ${provider} service`, 'debug'));
+
       store.dispatch(createLog(`Initialized ${provider} service`, 'debug'));
       return service;
     } catch (error) {

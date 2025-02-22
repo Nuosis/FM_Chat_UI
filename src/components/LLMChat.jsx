@@ -48,6 +48,11 @@ const LLMChat = () => {
   const handleSubmit = async () => {
     if (!input.trim()) return;
 
+    dispatch(createLog(
+      `LLM Request:\n${JSON.stringify(input, null, 2)}`,
+      LogType.INFO
+    ));
+
     const newMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, newMessage]);
     setInput('');
@@ -56,7 +61,7 @@ const LLMChat = () => {
       // Check if user is asking about available tools
       if (input.toLowerCase().includes('what tools') ||
           input.toLowerCase().includes('available tools')) {
-        const service = llmServiceFactory.getService(llmSettings.provider);
+        const service = await llmServiceFactory.initializeService(llmSettings.provider);
         const tools = service.getTools();
         
         if (tools.length > 0) {
@@ -77,7 +82,8 @@ const LLMChat = () => {
       let assistantMessage = { role: 'assistant', content: <ProgressText text="Thinking..." /> };
       setMessages(prev => [...prev, assistantMessage]);
 
-      const service = llmServiceFactory.getService(llmSettings.provider);
+      const service = await llmServiceFactory.initializeService(llmSettings.provider);
+      const tools = service.getTools();
       
       // Log the request
       const requestPayload = {
@@ -90,11 +96,15 @@ const LLMChat = () => {
           newMessage
         ],
         model: llmSettings.model,
-        temperature: llmSettings.temperature
+        temperature: llmSettings.temperature,
+        tools: tools
       };
-      
       dispatch(createLog(
-        `LLM Request:\n${JSON.stringify(requestPayload, null, 2)}`,
+        `Messages:\n${JSON.stringify(requestPayload.messages, null, 2)}`,
+        LogType.INFO
+      ));
+      dispatch(createLog(
+        `Tools:\n${JSON.stringify(tools, null, 2)}`,
         LogType.INFO
       ));
       
@@ -103,7 +113,8 @@ const LLMChat = () => {
         requestPayload.messages,
         {
           model: requestPayload.model,
-          temperature: requestPayload.temperature
+          temperature: requestPayload.temperature,
+          tools: tools
         },
         (progressText) => {
           if (progressText !== null && progressText !== undefined) {

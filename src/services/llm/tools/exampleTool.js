@@ -1,6 +1,10 @@
 export default {
   name: 'math_operations',
-  description: 'Perform basic math operations',
+  description: `Perform basic math operations. Examples:
+- "add 3 and 7" → {"operation": "add", "numbers": [3, 7]}
+- "subtract 5 from 10" → {"operation": "subtract", "numbers": [10, 5]}
+- "multiply 2 by 3" → {"operation": "multiply", "numbers": [2, 3]}
+- "divide 10 by 2" → {"operation": "divide", "numbers": [10, 2]}`,
   progressText: 'Performing math calculations...',
   parameters: {
     type: 'object',
@@ -8,13 +12,20 @@ export default {
       operation: {
         type: 'string',
         enum: ['add', 'subtract', 'multiply', 'divide'],
-        description: 'The math operation to perform'
+        description: `The math operation to perform. Must be one of: 
+- "add" (sum numbers)
+- "subtract" (subtract numbers in order)
+- "multiply" (multiply numbers)
+- "divide" (divide numbers in order)`
       },
       numbers: {
         type: 'array',
         items: { type: 'number' },
         minItems: 2,
-        description: 'Numbers to perform the operation on'
+        description: `Numbers to perform the operation on. Must be:
+- An array of at least 2 numbers
+- Numbers must be in the correct order for subtraction and division
+- Example: [10, 5] means 10 - 5 or 10 / 5`
       }
     },
     required: ['operation', 'numbers']

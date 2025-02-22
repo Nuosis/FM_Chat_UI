@@ -40,13 +40,20 @@ const Log = ({ open, onClose }) => {
             <Paper
               key={index}
               elevation={1}
-              sx={{
+              sx={(theme) => ({
                 p: 1.5,
-                bgcolor: log.type === 'error' ? 'error.light' : 
+                bgcolor: log.type === 'error' ? 'error.light' :
                          log.type === 'warning' ? 'warning.light' :
-                         log.type === 'success' ? 'success.light' : 'background.default',
-                color: log.type === 'error' ? 'error.contrastText' : 'text.primary'
-              }}
+                         log.type === 'success' ? 'success.light' :
+                         log.type === 'debug' ?
+                           theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'
+                           : 'background.default',
+                color: log.type === 'error' ? 'error.contrastText' :
+                       log.type === 'debug' ? 'text.secondary' : 'text.primary',
+                '& .MuiTypography-caption': {
+                  color: log.type === 'debug' ? 'text.disabled' : 'text.secondary'
+                }
+              })}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant="body2">

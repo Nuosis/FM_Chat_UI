@@ -67,6 +67,11 @@ export class BaseLLMService {
   async handleToolCalls(response, messages, options, onUpdate) {
     const toolResults = [];
     
+    store.dispatch(createLog({
+      message: `Handling tool calls: ${JSON.stringify(response.tool_calls, null, 2)}`,
+      type: 'debug'
+    }));
+    
     for (const toolCall of response.tool_calls) {
       try {
         const tool = this.toolsRegistry[toolCall.function.name];
@@ -74,7 +79,18 @@ export class BaseLLMService {
           onUpdate(tool.progressText);
         }
         
+        store.dispatch(createLog({
+          message: `Executing tool ${toolCall.function.name} with args: ${toolCall.function.arguments}`,
+          type: 'debug'
+        }));
+        
         const result = await this.executeTool(toolCall);
+        
+        store.dispatch(createLog({
+          message: `Tool ${toolCall.function.name} result: ${JSON.stringify(result, null, 2)}`,
+          type: 'debug'
+        }));
+        
         toolResults.push({
           tool_call_id: toolCall.id,
           name: toolCall.function.name,
@@ -94,19 +110,26 @@ export class BaseLLMService {
       }
     }
     
-    // Add tool results to messages and send follow-up
+    // Create new messages array with only the relevant context
     const newMessages = [
-      ...messages,
+      // Include the last user message and assistant response with tool calls
+      messages[messages.length - 1], // Last user message
       {
         role: 'assistant',
-        content: null,
-        tool_calls: response.tool_calls
+        content: response.content || '',
+        tool_calls: response.tool_calls || []
       },
-      {
+      ...toolResults.map(result => ({
         role: 'tool',
-        content: JSON.stringify(toolResults)
-      }
+        content: typeof result.content === 'string' ? result.content : JSON.stringify(result.content),
+        tool_call_id: result.tool_call_id
+      }))
     ];
+    
+    store.dispatch(createLog({
+      message: `Sending follow-up message with tool results: ${JSON.stringify(newMessages, null, 2)}`,
+      type: 'debug'
+    }));
     
     return this.sendMessage(newMessages, options, onUpdate);
   }

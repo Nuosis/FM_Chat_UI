@@ -14,13 +14,26 @@ export class DeepseekService extends BaseLLMService {
 
     const formattedMessages = messages.map(msg => ({
       role: msg.role || 'user',
-      content: msg.content
+      content: msg.content,
+      ...(msg.tool_calls && { tool_calls: msg.tool_calls })
+    }));
+
+    // Get registered tools and format them
+    const registeredTools = Object.values(this.toolsRegistry).map(tool => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters
+      }
     }));
 
     const requestData = {
       model,
       messages: formattedMessages,
-      temperature
+      temperature,
+      ...(registeredTools.length > 0 && { tools: registeredTools }),
+      tool_choice: registeredTools.length > 0 ? 'auto' : undefined
     };
 
     return this.axios.post(
@@ -36,10 +49,12 @@ export class DeepseekService extends BaseLLMService {
       throw new Error('No response from Deepseek');
     }
 
+    const message = choices[0].message;
     return {
-      content: choices[0].message.content,
-      role: choices[0].message.role,
+      content: message.content,
+      role: message.role,
       provider: this.provider,
+      tool_calls: message.tool_calls || [],
       raw: response.data
     };
   }

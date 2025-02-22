@@ -136,6 +136,166 @@ describe('OllamaService', () => {
       await expect(service.formatAndSendRequest(mockMessages))
         .rejects.toThrow('Request failed');
     });
+
+    it('should properly format messages with tool calls', async () => {
+      const messagesWithToolCalls = [
+        { role: 'user', content: 'Hello' },
+        {
+          role: 'assistant',
+          content: '',
+          tool_calls: [{
+            id: 'call_123',
+            function: { name: 'test_tool', arguments: '{}' }
+          }]
+        },
+        {
+          role: 'tool',
+          content: 'tool result',
+          tool_call_id: 'call_123'
+        }
+      ];
+
+      const mockResponse = {
+        data: { message: { content: 'Response after tool call' } }
+      };
+      mockAxios.post.mockResolvedValue(mockResponse);
+
+      await service.formatAndSendRequest(messagesWithToolCalls);
+
+      expect(mockAxios.post).toHaveBeenCalledWith(
+        service.config.endpoint,
+        expect.objectContaining({
+          messages: expect.arrayContaining([
+            expect.objectContaining({
+              role: 'assistant',
+              content: '',
+              tool_calls: expect.arrayContaining([{
+                id: 'call_123',
+                function: expect.any(Object)
+              }])
+            }),
+            expect.objectContaining({
+              role: 'tool',
+              content: 'tool result',
+              tool_call_id: 'call_123'
+            })
+          ])
+        }),
+        expect.any(Object)
+      );
+    });
+
+    it('should include tools in request when registered', async () => {
+      // Register a mock tool
+      service.registerTool({
+        name: 'test_tool',
+        description: 'A test tool',
+        parameters: {
+          type: 'object',
+          properties: {}
+        },
+        execute: async () => 'result'
+      });
+
+      const mockMessages = [{ role: 'user', content: 'Hello' }];
+      await service.formatAndSendRequest(mockMessages);
+
+      const requestData = mockAxios.post.mock.calls[0][1];
+      
+      // Verify required keys
+      expect(requestData).toHaveProperty('model');
+      expect(requestData).toHaveProperty('messages');
+      expect(requestData).toHaveProperty('options');
+      
+      // Verify tools formatting
+      expect(requestData.tools).toBeDefined();
+      expect(requestData.tools).toHaveLength(1);
+      expect(requestData.tools[0]).toEqual({
+        type: 'function',
+        function: {
+          name: 'test_tool',
+          description: 'A test tool',
+          parameters: {
+            type: 'object',
+            properties: {}
+          }
+        }
+      });
+      
+      // Verify tool_choice
+      expect(requestData.tool_choice).toBe('auto');
+    });
+
+    it('should validate request structure without tools', async () => {
+      const mockMessages = [{ role: 'user', content: 'Hello' }];
+      await service.formatAndSendRequest(mockMessages);
+
+      const requestData = mockAxios.post.mock.calls[0][1];
+      
+      // Verify required keys
+      expect(requestData).toHaveProperty('model');
+      expect(requestData).toHaveProperty('messages');
+      expect(requestData).toHaveProperty('options');
+      
+      // Verify tools and tool_choice are not present
+      expect(requestData).not.toHaveProperty('tools');
+      expect(requestData).not.toHaveProperty('tool_choice');
+    });
+
+    it('should validate request structure with multiple tools', async () => {
+      // Register multiple tools
+      service.registerTool({
+        name: 'test_tool1',
+        description: 'Test tool 1',
+        parameters: {
+          type: 'object',
+          properties: {}
+        },
+        execute: async () => 'result1'
+      });
+      service.registerTool({
+        name: 'test_tool2',
+        description: 'Test tool 2',
+        parameters: {
+          type: 'object',
+          properties: {}
+        },
+        execute: async () => 'result2'
+      });
+
+      const mockMessages = [{ role: 'user', content: 'Hello' }];
+      await service.formatAndSendRequest(mockMessages);
+
+      const requestData = mockAxios.post.mock.calls[0][1];
+      
+      // Verify tools formatting
+      expect(requestData.tools).toBeDefined();
+      expect(requestData.tools).toHaveLength(2);
+      expect(requestData.tools).toEqual([
+        {
+          type: 'function',
+          function: {
+            name: 'test_tool1',
+            description: 'Test tool 1',
+            parameters: {
+              type: 'object',
+              properties: {}
+            }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'test_tool2',
+            description: 'Test tool 2',
+            parameters: {
+              type: 'object',
+              properties: {}
+            }
+          }
+        }
+      ]);
+    });
   });
 
   describe('parseResponse', () => {
@@ -164,6 +324,55 @@ describe('OllamaService', () => {
     it('should handle null response', () => {
       expect(() => service.parseResponse(null))
         .toThrow('Invalid response from Ollama');
+    });
+
+    it('should parse response with tool calls', () => {
+      const mockResponse = {
+        message: {
+          content: '',
+          tool_calls: [{
+            id: 'call_123',
+            function: {
+              name: 'test_tool',
+              arguments: '{}'
+            }
+          }]
+        }
+      };
+
+      const result = service.parseResponse(mockResponse);
+
+      expect(result).toEqual({
+        content: '',
+        role: 'assistant',
+        provider: 'OLLAMA',
+        tool_calls: [{
+          id: 'call_123',
+          function: {
+            name: 'test_tool',
+            arguments: '{}'
+          }
+        }],
+        raw: mockResponse
+      });
+    });
+
+    it('should handle response without tool calls', () => {
+      const mockResponse = {
+        message: {
+          content: 'Hello world'
+        }
+      };
+
+      const result = service.parseResponse(mockResponse);
+
+      expect(result).toEqual({
+        content: 'Hello world',
+        role: 'assistant',
+        provider: 'OLLAMA',
+        tool_calls: [],
+        raw: mockResponse
+      });
     });
   });
 });

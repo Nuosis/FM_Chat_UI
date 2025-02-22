@@ -154,5 +154,129 @@ describe('AnthropicService', () => {
       const { model, ...optionsWithoutModel } = mockOptions;
       await expect(testService.sendMessage(mockMessages, optionsWithoutModel)).rejects.toThrow('Model is required');
     });
+
+    it('should include tools in request when registered', async () => {
+      const testService = new AnthropicService(mockApiKey);
+      testService.initialize(mockApiKey);
+      testService.config = { endpoint: '/anthropic' };
+      
+      // Register a mock tool
+      testService.registerTool({
+        name: 'test_tool',
+        description: 'A test tool',
+        parameters: {
+          type: 'object',
+          properties: {}
+        },
+        execute: async () => 'result'
+      });
+
+      const mockMessages = [{ role: 'user', content: 'Hello' }];
+      await testService.sendMessage(mockMessages, mockOptions);
+
+      const requestData = testService.axios.post.mock.calls[0][1];
+      
+      // Verify required keys
+      expect(requestData).toHaveProperty('model');
+      expect(requestData).toHaveProperty('messages');
+      expect(requestData).toHaveProperty('temperature');
+      
+      // Verify tools formatting
+      expect(requestData.tools).toBeDefined();
+      expect(requestData.tools).toHaveLength(1);
+      expect(requestData.tools[0]).toEqual({
+        type: 'function',
+        function: {
+          name: 'test_tool',
+          description: 'A test tool',
+          parameters: {
+            type: 'object',
+            properties: {}
+          }
+        }
+      });
+      
+      // Verify tool_choice
+      expect(requestData.tool_choice).toBe('auto');
+    });
+
+    it('should validate request structure without tools', async () => {
+      const testService = new AnthropicService(mockApiKey);
+      testService.initialize(mockApiKey);
+      testService.config = { endpoint: '/anthropic' };
+
+      const mockMessages = [{ role: 'user', content: 'Hello' }];
+      await testService.sendMessage(mockMessages, mockOptions);
+
+      const requestData = testService.axios.post.mock.calls[0][1];
+      
+      // Verify required keys
+      expect(requestData).toHaveProperty('model');
+      expect(requestData).toHaveProperty('messages');
+      expect(requestData).toHaveProperty('temperature');
+      
+      // Verify tools and tool_choice are not present
+      expect(requestData).not.toHaveProperty('tools');
+      expect(requestData).not.toHaveProperty('tool_choice');
+    });
+
+    it('should validate request structure with multiple tools', async () => {
+      const testService = new AnthropicService(mockApiKey);
+      testService.initialize(mockApiKey);
+      testService.config = { endpoint: '/anthropic' };
+
+      // Register multiple tools
+      testService.registerTool({
+        name: 'test_tool1',
+        description: 'Test tool 1',
+        parameters: {
+          type: 'object',
+          properties: {}
+        },
+        execute: async () => 'result1'
+      });
+      testService.registerTool({
+        name: 'test_tool2',
+        description: 'Test tool 2',
+        parameters: {
+          type: 'object',
+          properties: {}
+        },
+        execute: async () => 'result2'
+      });
+
+      const mockMessages = [{ role: 'user', content: 'Hello' }];
+      await testService.sendMessage(mockMessages, mockOptions);
+
+      const requestData = testService.axios.post.mock.calls[0][1];
+      
+      // Verify tools formatting
+      expect(requestData.tools).toBeDefined();
+      expect(requestData.tools).toHaveLength(2);
+      expect(requestData.tools).toEqual([
+        {
+          type: 'function',
+          function: {
+            name: 'test_tool1',
+            description: 'Test tool 1',
+            parameters: {
+              type: 'object',
+              properties: {}
+            }
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'test_tool2',
+            description: 'Test tool 2',
+            parameters: {
+              type: 'object',
+              properties: {}
+            }
+          }
+        }
+      ]);
+    });
   });
 });

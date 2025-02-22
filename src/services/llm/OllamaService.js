@@ -25,10 +25,21 @@ export class OllamaService extends BaseLLMService {
   async formatAndSendRequest(messages, options = {}) {
     const { model = 'llama2', temperature = 0.7 } = options;
 
-    // Convert chat history to Ollama format
+    // Convert chat history to Ollama format with tool support
     const formattedMessages = messages.map(msg => ({
       role: msg.role || 'user',
-      content: msg.content
+      content: msg.content,
+      ...(msg.tool_calls && { tool_calls: msg.tool_calls })
+    }));
+
+    // Get registered tools and format them
+    const registeredTools = Object.values(this.toolsRegistry).map(tool => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters
+      }
     }));
 
     const requestData = {
@@ -37,7 +48,9 @@ export class OllamaService extends BaseLLMService {
       options: {
         temperature,
         top_p: 0.9
-      }
+      },
+      ...(registeredTools.length > 0 && { tools: registeredTools }),
+      tool_choice: registeredTools.length > 0 ? 'auto' : undefined
     };
 
     const response = await this.axios.post(
@@ -54,10 +67,12 @@ export class OllamaService extends BaseLLMService {
       throw new Error('Invalid response from Ollama');
     }
 
+    const message = response.message;
     return {
-      content: response.message.content,
+      content: message.content,
       role: 'assistant',
       provider: this.provider,
+      tool_calls: message.tool_calls || [],
       raw: response
     };
   }

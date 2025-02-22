@@ -1,66 +1,79 @@
-import { inFileMaker, findRecords, createRecord, updateRecord, deleteRecord, executeScript } from '../../../utils/filemaker';
+import { handleFMScriptResult, inFileMaker } from '../../../utils/filemaker';
+
+// Global variable and function for FileMaker to call with the result
+window.toolRegistrationResult = null;
+window.registerToolsCallback = (result) => {
+  try {
+    const tools = JSON.parse(result);
+    // Add execute function to each tool
+    const toolsWithExecute = tools.map(tool => ({
+      ...tool,
+      execute: async (parameters) => {
+        const adapter = new FileMakerToolAdapter();
+        return adapter.executeTool(tool.name, parameters);
+      }
+    }));
+    window.toolRegistrationResult = toolsWithExecute;
+  } catch (error) {
+    console.error('Error parsing tool registration result:', error);
+    window.toolRegistrationResult = [];
+  }
+};
 
 export class FileMakerToolAdapter {
-  name = 'filemaker';
-  description = 'Adapter for executing FileMaker tools';
-  schema = {
-    type: 'object',
-    properties: {
-      action: {
-        type: 'string',
-        enum: ['find', 'create', 'update', 'delete', 'script']
-      },
-      layout: { type: 'string' },
-      data: { type: 'object' },
-      scriptName: { type: 'string' },
-      scriptParameter: { type: 'string' }
-    },
-    required: ['action', 'layout']
-  };
-
-  async execute({ action, layout, data, scriptName, scriptParameter }) {
+  async executeTool(toolName, parameters) {
     if (!inFileMaker) {
       throw new Error('FileMaker tools are only available in FileMaker environment');
     }
 
-    if (!layout) {
-      throw new Error('Layout is required');
-    }
-
     try {
-      switch (action) {
-        case 'find':
-          return await findRecords(layout, data);
-
-        case 'create':
-          if (!data) {
-            throw new Error('Data is required for create action');
-          }
-          return await createRecord(layout, data);
-
-        case 'update':
-          if (!data?.id) {
-            throw new Error('Record ID is required for update action');
-          }
-          return await updateRecord(layout, data);
-
-        case 'delete':
-          if (!data?.id) {
-            throw new Error('Record ID is required for delete action');
-          }
-          return await deleteRecord(layout, data.id);
-
-        case 'script':
-          if (!scriptName) {
-            throw new Error('Script name is required for script action');
-          }
-          return await executeScript(layout, scriptName, scriptParameter);
-
-        default:
-          throw new Error('Invalid action');
-      }
+      const response = await performFMScript({
+        action: 'performScript',
+        script: `ai * tools * ${toolName}`,
+        scriptParam: {
+          ...parameters
+        }
+      });
+      return handleFMScriptResult(response);
     } catch (error) {
-      throw error; // Pass through the original error
+      throw new Error(`FileMaker tool execution failed: ${error.message}`);
+    }
+  }
+
+  async registerTools() {
+    if (!inFileMaker) {
+      return []; // Return empty array in non-FileMaker environment
+    }
+    console.log("fetching tools from FileMaker");
+    try {
+      console.log('Attempting to fetch tools from FileMaker...');
+      if (!window.FileMaker) {
+        throw new Error('FileMaker not available');
+      }
+      
+      // Reset the result before calling the script
+      window.toolRegistrationResult = null;
+      
+      console.log('Calling ai * ListTools...');
+      window.FileMaker.PerformScript('ai * ListTools', '{}');
+      
+      // Wait for the result to be set
+      let attempts = 0;
+      while (!window.toolRegistrationResult && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
+      }
+      
+      if (!window.toolRegistrationResult) {
+        console.error('No result received from FileMaker after 5 seconds');
+        return [];
+      }
+      
+      console.log('Received result:', window.toolRegistrationResult);
+      return handleFMScriptResult(window.toolRegistrationResult);
+    } catch (error) {
+      console.error('Error fetching tools:', error);
+      throw new Error(`Failed to fetch FileMaker tools: ${error.message}`);
     }
   }
 }

@@ -113,6 +113,76 @@ describe('OpenAIService', () => {
       );
     });
 
+    it('should properly format messages with tool calls', async () => {
+      const messagesWithToolCalls = [
+        { role: 'user', content: 'Hello' },
+        {
+          role: 'assistant',
+          content: '',
+          tool_calls: [{
+            id: 'call_123',
+            function: { name: 'test_tool', arguments: '{}' }
+          }]
+        },
+        {
+          role: 'tool',
+          content: 'tool result',
+          tool_call_id: 'call_123'
+        }
+      ];
+
+      const mockResponse = {
+        data: {
+          choices: [{
+            message: {
+              content: 'Response after tool call',
+              role: 'assistant'
+            }
+          }]
+        }
+      };
+
+      axiosLLM().post.mockResolvedValue(mockResponse);
+
+      await service.formatAndSendRequest(messagesWithToolCalls, mockOptions);
+
+      expect(axiosLLM().post).toHaveBeenCalledWith(
+        '/openai/chat/completions',
+        {
+          model: mockOptions.model,
+          messages: [
+            {
+              role: 'user',
+              content: 'Hello'
+            },
+            {
+              role: 'assistant',
+              content: '',
+              tool_calls: [{
+                id: 'call_123',
+                type: 'function',
+                function: {
+                  name: 'test_tool',
+                  arguments: '{}'
+                }
+              }]
+            },
+            {
+              role: 'tool',
+              content: 'tool result',
+              tool_call_id: 'call_123'
+            }
+          ],
+          temperature: mockOptions.temperature
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${mockApiKey}`
+          }
+        }
+      );
+    });
+
     it('should include tools in request when provided', async () => {
       const mockTools = [{
         name: 'testTool',
@@ -127,14 +197,88 @@ describe('OpenAIService', () => {
 
       await service.formatAndSendRequest(mockMessages, optionsWithTools);
 
-      expect(axiosLLM().post).toHaveBeenCalledWith(
-        '/openai/chat/completions',
-        expect.objectContaining({
-          tools: mockTools,
-          tool_choice: 'auto'
-        }),
-        expect.any(Object)
-      );
+      const requestData = axiosLLM().post.mock.calls[0][1];
+      
+      // Verify required keys
+      expect(requestData).toHaveProperty('model');
+      expect(requestData).toHaveProperty('messages');
+      expect(requestData).toHaveProperty('temperature');
+      
+      // Verify tools formatting
+      expect(requestData.tools).toBeDefined();
+      expect(requestData.tools).toHaveLength(1);
+      expect(requestData.tools[0]).toEqual({
+        type: 'function',
+        function: {
+          name: 'testTool',
+          description: 'Test tool',
+          parameters: {}
+        }
+      });
+      
+      // Verify tool_choice
+      expect(requestData.tool_choice).toBe('auto');
+    });
+
+    it('should validate request structure without tools', async () => {
+      await service.formatAndSendRequest(mockMessages, mockOptions);
+
+      const requestData = axiosLLM().post.mock.calls[0][1];
+      
+      // Verify required keys
+      expect(requestData).toHaveProperty('model');
+      expect(requestData).toHaveProperty('messages');
+      expect(requestData).toHaveProperty('temperature');
+      
+      // Verify tools and tool_choice are not present
+      expect(requestData).not.toHaveProperty('tools');
+      expect(requestData).not.toHaveProperty('tool_choice');
+    });
+
+    it('should validate request structure with multiple tools', async () => {
+      const mockTools = [
+        {
+          name: 'testTool1',
+          description: 'Test tool 1',
+          parameters: {}
+        },
+        {
+          name: 'testTool2',
+          description: 'Test tool 2',
+          parameters: {}
+        }
+      ];
+
+      const optionsWithTools = {
+        ...mockOptions,
+        tools: mockTools
+      };
+
+      await service.formatAndSendRequest(mockMessages, optionsWithTools);
+
+      const requestData = axiosLLM().post.mock.calls[0][1];
+      
+      // Verify tools formatting
+      expect(requestData.tools).toBeDefined();
+      expect(requestData.tools).toHaveLength(2);
+      expect(requestData.tools).toEqual([
+        {
+          type: 'function',
+          function: {
+            name: 'testTool1',
+            description: 'Test tool 1',
+            parameters: {}
+          }
+        },
+        {
+          type: 'function',
+          function: {
+            name: 'testTool2',
+            description: 'Test tool 2',
+            parameters: {}
+          }
+        }
+      ]);
     });
   });
 

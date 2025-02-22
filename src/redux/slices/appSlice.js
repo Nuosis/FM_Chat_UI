@@ -4,7 +4,8 @@ export const LogType = {
   INFO: 'info',
   ERROR: 'error',
   WARNING: 'warning',
-  SUCCESS: 'success'
+  SUCCESS: 'success',
+  DEBUG: 'debug'
 };
 
 const initialState = {
@@ -16,14 +17,39 @@ const appSlice = createSlice({
   name: 'app',
   initialState,
   reducers: {
-    createLog: (state, action) => {
-      const { payload } = action;
-      const log = {
-        message: typeof payload === 'string' ? payload : payload.message,
-        type: typeof payload === 'string' ? LogType.INFO : payload.type,
-        timestamp: new Date().toISOString()
-      };
-      state.logs.push(log);
+    createLog: {
+      reducer: (state, action) => {
+        state.logs.push(action.payload);
+      },
+      prepare: (messageOrPayload, type) => {
+        let log;
+        
+        if (typeof messageOrPayload === 'string') {
+          // Handle string message with optional type parameter
+          log = {
+            message: messageOrPayload,
+            type: type || LogType.INFO,
+            timestamp: new Date().toISOString()
+          };
+        } else if (typeof messageOrPayload === 'object') {
+          // Handle object payload
+          log = {
+            message: messageOrPayload.message,
+            type: messageOrPayload.type || LogType.INFO,
+            timestamp: new Date().toISOString()
+          };
+        } else {
+          // Invalid payload type
+          console.error('Invalid log payload:', messageOrPayload);
+          log = {
+            message: 'Invalid log message',
+            type: LogType.ERROR,
+            timestamp: new Date().toISOString()
+          };
+        }
+        
+        return { payload: log };
+      }
     },
     clearLogs: (state) => {
       state.logs = [];

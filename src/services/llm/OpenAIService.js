@@ -1,4 +1,6 @@
 import { BaseLLMService } from './BaseLLMService';
+import { store } from '../../redux/store';
+import { createLog } from '../../redux/slices/appSlice';
 
 export class OpenAIService extends BaseLLMService {
   constructor() {
@@ -20,30 +22,85 @@ export class OpenAIService extends BaseLLMService {
   }
 
   async formatAndSendRequest(messages, options = {}) {
-    const { 
-      model = import.meta.env.VITE_DEFAULT_MODEL, 
-      temperature = 0.7,
-      tools 
+    const {
+      model = import.meta.env.VITE_DEFAULT_MODEL,
+      temperature = 0.7
     } = options;
 
-    const formattedMessages = messages.map(msg => ({
-      role: msg.role || 'user',
-      content: msg.content
+    // Get registered tools and format them for OpenAI
+    const registeredTools = Object.values(this.toolsRegistry).map(tool => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters
+      }
+    }));
+
+    // store.dispatch(createLog({
+    //   message: `Sending request with tools: ${JSON.stringify(registeredTools, null, 2)}`,
+    //   type: 'debug'
+    // }));
+
+    const formattedMessages = messages.map(msg => {
+      const formatted = {
+        role: msg.role || 'user',
+        content: msg.content
+      };
+      
+      if (msg.tool_calls) {
+        formatted.tool_calls = msg.tool_calls.map(call => ({
+          id: call.id,
+          type: 'function',
+          function: {
+            name: call.function.name,
+            arguments: call.function.arguments
+          }
+        }));
+      }
+      
+      if (msg.tool_call_id) {
+        formatted.tool_call_id = msg.tool_call_id;
+      }
+      
+      return formatted;
+    });
+
+    // Format tools if provided
+    const formattedTools = options.tools?.map(tool => ({
+      type: 'function',
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters
+      }
     }));
 
     const requestData = {
       model,
       messages: formattedMessages,
       temperature,
-      ...(tools && tools.length > 0 && { tools }),
-      tool_choice: tools && tools.length > 0 ? 'auto' : undefined
+      ...(options.tools && { tools: formattedTools }),
+      ...(options.tools && { tool_choice: 'auto' })
     };
 
-    return this.axios.post(
+    store.dispatch(createLog({
+      message: `OpenAI request data:\n${JSON.stringify(requestData, null, 2)}`,
+      type: 'debug'
+    }));
+
+    const response = await this.axios.post(
       this.config.endpoint,
       requestData,
       { headers: this.config.headers }
     );
+
+    store.dispatch(createLog({
+      message: `OpenAI response data:\n${JSON.stringify(response.data, null, 2)}`,
+      type: 'debug'
+    }));
+
+    return response;
   }
 
   parseResponse(response) {
