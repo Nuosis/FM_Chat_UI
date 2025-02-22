@@ -6,37 +6,68 @@ export class AnthropicService extends BaseLLMService {
     this.apiKey = apiKey;
   }
 
-  initialize() {
-    super.initialize(this.apiKey);
+  initialize(apiKey) {
+    super.initialize(apiKey);
+  }
+
+  async fetchModels() {
+    if (!this.axios || !this.config) {
+      throw new Error('Service not initialized');
+    }
+
+    try {
+      const response = await this.axios.post('/anthropic/models', {
+        apiKey: this.apiKey
+      });
+      
+      if (!response?.data?.data) {
+        throw new Error('API Error');
+      }
+      
+      return response.data.data.map(model => model.id);
+    } catch (error) {
+      if (error.message === 'API Error') {
+        throw error;
+      }
+      throw new Error('API Error');
+    }
   }
 
   async formatAndSendRequest(messages, options = {}) {
-    const { model = 'claude-3-opus-20240229', temperature = 0.7 } = options;
+    if (!messages || messages.length === 0) {
+      throw new Error('No messages provided');
+    }
+
+    if (!options.model) {
+      throw new Error('Model is required');
+    }
+
+    const { model, temperature = 0.7 } = options;
 
     // Convert chat history to Anthropic format
     const formattedMessages = messages.map(msg => ({
-      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      role: msg.role === 'system' ? 'assistant' : msg.role,
       content: msg.content
     }));
 
     const requestData = {
-      model,
+      apiKey: this.apiKey,
       messages: formattedMessages,
-      max_tokens: 4096,
+      model,
       temperature
     };
 
-    return this.axios.post(
-      this.config.endpoint,
-      requestData,
-      { headers: this.config.headers }
-    );
+    return this.axios.post('/anthropic/messages', requestData);
   }
 
   parseResponse(response) {
-    const { content } = response.data;
-    if (!content) {
+    if (!response.data) {
       throw new Error('No response from Anthropic');
+    }
+
+    const { content } = response.data;
+    if (!content || !Array.isArray(content) || content.length === 0) {
+      throw new Error('Invalid response format from Anthropic');
     }
 
     return {

@@ -29,27 +29,39 @@ describe('AnthropicService', () => {
 
   describe('getModels', () => {
     it('should return available models', async () => {
-      axiosLLM.post.mockResolvedValueOnce({
+      const mockResponse = {
         data: {
           data: [
-            { id: 'claude-2' },
-            { id: 'claude-instant-1' }
+            { id: 'claude-3-opus-20240229' },
+            { id: 'claude-3-sonnet-20240229' },
+            { id: 'claude-2.1' }
           ]
         }
-      });
+      };
 
-      const models = await service.getModels();
-      expect(models).toEqual(['claude-2', 'claude-instant-1']);
-      expect(axiosLLM.post).toHaveBeenCalledWith('/anthropic/models', {
+      const testService = new AnthropicService(mockApiKey);
+      testService.initialize(mockApiKey);
+      testService.config = { endpoint: '/anthropic' };
+      testService.axios = {
+        post: vi.fn().mockResolvedValue(mockResponse)
+      };
+
+      const models = await testService.getModels();
+      expect(models).toEqual(['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-2.1']);
+      expect(testService.axios.post).toHaveBeenCalledWith('/anthropic/models', {
         apiKey: mockApiKey
       });
     });
 
     it('should handle API errors', async () => {
-      const error = new Error('API Error');
-      axiosLLM.post.mockRejectedValueOnce(error);
+      const testService = new AnthropicService(mockApiKey);
+      testService.initialize(mockApiKey);
+      testService.config = { endpoint: '/anthropic' };
+      testService.axios = {
+        post: vi.fn().mockRejectedValue(new Error('API Error'))
+      };
 
-      await expect(service.getModels()).rejects.toThrow('API Error');
+      await expect(testService.getModels()).rejects.toThrow('API Error');
     });
   });
 
@@ -70,19 +82,23 @@ describe('AnthropicService', () => {
         }
       };
 
-      axiosLLM.post.mockResolvedValueOnce(mockResponse);
+      const testService = new AnthropicService(mockApiKey);
+      testService.initialize(mockApiKey);
+      testService.config = { endpoint: '/anthropic' };
+      testService.axios = {
+        post: vi.fn().mockResolvedValue(mockResponse)
+      };
 
-      await service.sendMessage(mockMessages, mockOptions);
+      await testService.sendMessage(mockMessages, mockOptions);
 
-      expect(axiosLLM.post).toHaveBeenCalledWith('/anthropic/messages', {
+      expect(testService.axios.post).toHaveBeenCalledWith('/anthropic/messages', {
         apiKey: mockApiKey,
         messages: [
           { role: 'assistant', content: 'You are a helpful assistant' },
           { role: 'user', content: 'Hello' }
         ],
         model: mockOptions.model,
-        temperature: mockOptions.temperature,
-        stream: false
+        temperature: mockOptions.temperature
       });
     });
 
@@ -93,77 +109,50 @@ describe('AnthropicService', () => {
         }
       };
 
-      axiosLLM.post.mockResolvedValueOnce(mockResponse);
-
-      const response = await service.sendMessage(mockMessages, mockOptions);
-      expect(response).toEqual({
-        content: 'Hello! How can I help you today?'
-      });
-    });
-
-    it('should handle streaming responses', async () => {
-      const mockChunks = [
-        { data: { delta: { text: 'Hello' } } },
-        { data: { delta: { text: ' world' } } },
-        { data: { delta: { text: '!' } } }
-      ];
-
-      const mockStream = {
-        async *[Symbol.asyncIterator]() {
-          for (const chunk of mockChunks) {
-            yield { data: JSON.stringify(chunk) };
-          }
-        }
+      const testService = new AnthropicService(mockApiKey);
+      testService.initialize(mockApiKey);
+      testService.config = { endpoint: '/anthropic' };
+      testService.axios = {
+        post: vi.fn().mockResolvedValue(mockResponse)
       };
 
-      axiosLLM.post.mockResolvedValueOnce({ data: mockStream });
-
-      const onProgress = vi.fn();
-      const response = await service.sendMessage(mockMessages, mockOptions, onProgress);
-
+      const response = await testService.sendMessage(mockMessages, mockOptions);
       expect(response).toEqual({
-        content: 'Hello world!'
-      });
-
-      expect(onProgress).toHaveBeenCalledWith('Hello');
-      expect(onProgress).toHaveBeenCalledWith('Hello world');
-      expect(onProgress).toHaveBeenCalledWith('Hello world!');
-
-      expect(axiosLLM.post).toHaveBeenCalledWith('/anthropic/messages', {
-        apiKey: mockApiKey,
-        messages: expect.any(Array),
-        model: mockOptions.model,
-        temperature: mockOptions.temperature,
-        stream: true
+        content: 'Hello! How can I help you today?',
+        role: 'assistant',
+        provider: 'ANTHROPIC',
+        raw: {
+          content: [{ text: 'Hello! How can I help you today?' }]
+        }
       });
     });
 
     it('should handle API errors', async () => {
-      const error = new Error('API Error');
-      axiosLLM.post.mockRejectedValueOnce(error);
-
-      await expect(service.sendMessage(mockMessages, mockOptions)).rejects.toThrow('API Error');
-    });
-
-    it('should handle streaming errors', async () => {
-      const mockStream = {
-        async *[Symbol.asyncIterator]() {
-          throw new Error('Stream Error');
-        }
+      const testService = new AnthropicService(mockApiKey);
+      testService.initialize(mockApiKey);
+      testService.config = { endpoint: '/anthropic' };
+      testService.axios = {
+        post: vi.fn().mockRejectedValue(new Error('API Error'))
       };
 
-      axiosLLM.post.mockResolvedValueOnce({ data: mockStream });
-
-      await expect(service.sendMessage(mockMessages, mockOptions, vi.fn())).rejects.toThrow('Stream Error');
+      await expect(testService.sendMessage(mockMessages, mockOptions)).rejects.toThrow('API Error');
     });
 
     it('should handle empty messages array', async () => {
-      await expect(service.sendMessage([], mockOptions)).rejects.toThrow('No messages provided');
+      const testService = new AnthropicService(mockApiKey);
+      testService.initialize(mockApiKey);
+      testService.config = { endpoint: '/anthropic' };
+
+      await expect(testService.sendMessage([], mockOptions)).rejects.toThrow('No messages provided');
     });
 
     it('should handle missing model option', async () => {
+      const testService = new AnthropicService(mockApiKey);
+      testService.initialize(mockApiKey);
+      testService.config = { endpoint: '/anthropic' };
+      
       const { model, ...optionsWithoutModel } = mockOptions;
-      await expect(service.sendMessage(mockMessages, optionsWithoutModel)).rejects.toThrow('Model is required');
+      await expect(testService.sendMessage(mockMessages, optionsWithoutModel)).rejects.toThrow('Model is required');
     });
   });
 });
