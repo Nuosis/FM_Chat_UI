@@ -3,52 +3,72 @@ import { OpenAIService } from '../OpenAIService';
 import axiosLLM from '../axiosLLM';
 
 // Mock axiosLLM
-vi.mock('../axiosLLM', () => ({
-  default: {
+vi.mock('../axiosLLM', () => {
+  const mockAxiosInstance = {
+    get: vi.fn(),
     post: vi.fn(),
     interceptors: {
       request: { use: vi.fn() },
       response: { use: vi.fn() }
     }
-  }
-}));
+  };
+  
+  return {
+    default: vi.fn().mockReturnValue(mockAxiosInstance)
+  };
+});
 
 describe('OpenAIService', () => {
   let service;
   const mockApiKey = 'test-api-key';
 
   beforeEach(() => {
-    service = new OpenAIService(mockApiKey);
+    service = new OpenAIService();
+    service.initialize(mockApiKey);
+    service.config = {
+      endpoint: '/openai/chat/completions',
+      modelsEndpoint: '/openai/models',
+      headers: {
+        'Authorization': `Bearer ${mockApiKey}`
+      }
+    };
     vi.clearAllMocks();
   });
 
-  describe('getModels', () => {
-    it('should return available models', async () => {
-      axiosLLM.post.mockResolvedValueOnce({
+  describe('fetchModels', () => {
+    it('should return filtered GPT models', async () => {
+      const mockResponse = {
         data: {
           data: [
             { id: 'gpt-4' },
-            { id: 'gpt-3.5-turbo' }
+            { id: 'gpt-3.5-turbo' },
+            { id: 'text-davinci-003' },
+            { id: 'gpt-4-instruct' }
           ]
         }
-      });
+      };
 
-      const models = await service.getModels();
+      axiosLLM().get.mockResolvedValue(mockResponse);
+
+      const models = await service.fetchModels();
       expect(models).toEqual(['gpt-4', 'gpt-3.5-turbo']);
-      expect(axiosLLM.post).toHaveBeenCalledWith('/openai/models', {
-        apiKey: mockApiKey
-      });
+      expect(axiosLLM().get).toHaveBeenCalledWith(
+        '/openai/models',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Authorization': `Bearer ${mockApiKey}`
+          })
+        })
+      );
     });
 
     it('should handle API errors', async () => {
-      const error = new Error('API Error');
-      axiosLLM.post.mockRejectedValueOnce(error);
-
-      await expect(service.getModels()).rejects.toThrow('API Error');
+      axiosLLM().get.mockRejectedValue(new Error('API Error'));
+      await expect(service.fetchModels()).rejects.toThrow('API Error');
     });
   });
 
-  describe('sendMessage', () => {
+  describe('formatAndSendRequest', () => {
     const mockMessages = [
       { role: 'system', content: 'You are a helpful assistant' },
       { role: 'user', content: 'Hello' }
@@ -58,87 +78,131 @@ describe('OpenAIService', () => {
       temperature: 0.7
     };
 
-    it('should send messages and return response', async () => {
+    it('should format and send request correctly', async () => {
       const mockResponse = {
         data: {
           choices: [{
             message: {
-              content: 'Hello! How can I help you today?'
+              content: 'Hello! How can I help you today?',
+              role: 'assistant'
             }
           }]
         }
       };
 
-      axiosLLM.post.mockResolvedValueOnce(mockResponse);
+      axiosLLM().post.mockResolvedValue(mockResponse);
 
-      const response = await service.sendMessage(mockMessages, mockOptions);
-      expect(response).toEqual({
-        content: 'Hello! How can I help you today?'
-      });
+      await service.formatAndSendRequest(mockMessages, mockOptions);
 
-      expect(axiosLLM.post).toHaveBeenCalledWith('/openai/chat/completions', {
-        apiKey: mockApiKey,
-        messages: mockMessages,
-        model: mockOptions.model,
-        temperature: mockOptions.temperature,
-        stream: false
-      });
+      expect(axiosLLM().post).toHaveBeenCalledWith(
+        '/openai/chat/completions',
+        {
+          model: mockOptions.model,
+          messages: mockMessages.map(msg => ({
+            role: msg.role || 'user',
+            content: msg.content
+          })),
+          temperature: mockOptions.temperature,
+          tool_choice: undefined
+        },
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'Authorization': `Bearer ${mockApiKey}`
+          })
+        })
+      );
     });
 
-    it('should handle streaming responses', async () => {
-      const mockChunks = [
-        { data: { choices: [{ delta: { content: 'Hello' } }] } },
-        { data: { choices: [{ delta: { content: ' world' } }] } },
-        { data: { choices: [{ delta: { content: '!' } }] } }
-      ];
+    it('should include tools in request when provided', async () => {
+      const mockTools = [{
+        name: 'testTool',
+        description: 'Test tool',
+        parameters: {}
+      }];
 
-      const mockStream = {
-        async *[Symbol.asyncIterator]() {
-          for (const chunk of mockChunks) {
-            yield { data: JSON.stringify(chunk) };
-          }
+      const optionsWithTools = {
+        ...mockOptions,
+        tools: mockTools
+      };
+
+      await service.formatAndSendRequest(mockMessages, optionsWithTools);
+
+      expect(axiosLLM().post).toHaveBeenCalledWith(
+        '/openai/chat/completions',
+        expect.objectContaining({
+          tools: mockTools,
+          tool_choice: 'auto'
+        }),
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('parseResponse', () => {
+    it('should parse successful response', () => {
+      const mockResponse = {
+        data: {
+          choices: [{
+            message: {
+              content: 'Hello!',
+              role: 'assistant',
+              tool_calls: []
+            }
+          }]
         }
       };
 
-      axiosLLM.post.mockResolvedValueOnce({ data: mockStream });
-
-      const onProgress = vi.fn();
-      const response = await service.sendMessage(mockMessages, mockOptions, onProgress);
-
-      expect(response).toEqual({
-        content: 'Hello world!'
-      });
-
-      expect(onProgress).toHaveBeenCalledWith('Hello');
-      expect(onProgress).toHaveBeenCalledWith('Hello world');
-      expect(onProgress).toHaveBeenCalledWith('Hello world!');
-
-      expect(axiosLLM.post).toHaveBeenCalledWith('/openai/chat/completions', {
-        apiKey: mockApiKey,
-        messages: mockMessages,
-        model: mockOptions.model,
-        temperature: mockOptions.temperature,
-        stream: true
+      const result = service.parseResponse(mockResponse);
+      expect(result).toEqual({
+        content: 'Hello!',
+        role: 'assistant',
+        provider: 'OPENAI',
+        tool_calls: [],
+        raw: mockResponse.data
       });
     });
 
-    it('should handle API errors', async () => {
-      const error = new Error('API Error');
-      axiosLLM.post.mockRejectedValueOnce(error);
-
-      await expect(service.sendMessage(mockMessages, mockOptions)).rejects.toThrow('API Error');
-    });
-
-    it('should handle streaming errors', async () => {
-      const mockStream = {
-        async *[Symbol.asyncIterator]() {
-          throw new Error('Stream Error');
+    it('should handle tool calls in response', () => {
+      const mockResponse = {
+        data: {
+          choices: [{
+            message: {
+              content: null,
+              role: 'assistant',
+              tool_calls: [{
+                id: '1',
+                function: {
+                  name: 'testTool',
+                  arguments: '{}'
+                }
+              }]
+            }
+          }]
         }
       };
 
-      axiosLLM.post.mockResolvedValueOnce({ data: mockStream });
+      const result = service.parseResponse(mockResponse);
+      expect(result.tool_calls).toBeDefined();
+      expect(result.tool_calls).toHaveLength(1);
+      expect(result.tool_calls[0]).toEqual(mockResponse.data.choices[0].message.tool_calls[0]);
+    });
 
-      await expect(service.sendMessage(mockMessages, mockOptions, vi.fn())).rejects.toThrow('Stream Error');
+    it('should throw error for invalid response', () => {
+      const mockResponse = {
+        data: {}
+      };
+
+      expect(() => service.parseResponse(mockResponse)).toThrow('No response from OpenAI');
+    });
+
+    it('should throw error when choices array is empty', () => {
+      const mockResponse = {
+        data: {
+          choices: []
+        }
+      };
+
+      expect(() => service.parseResponse(mockResponse)).toThrow('No response from OpenAI');
     });
   });
 });

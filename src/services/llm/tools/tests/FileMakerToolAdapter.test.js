@@ -1,15 +1,20 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FileMakerToolAdapter } from '../FileMakerToolAdapter';
-import * as filemaker from '../../../utils/filemaker';
+import * as filemaker from '../../../../utils/filemaker';
 
 // Mock filemaker utility
-vi.mock('../../../utils/filemaker', () => ({
-  executeScript: vi.fn(),
-  findRecords: vi.fn(),
-  createRecord: vi.fn(),
-  updateRecord: vi.fn(),
-  deleteRecord: vi.fn()
-}));
+vi.mock('../../../../utils/filemaker', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    executeScript: vi.fn().mockImplementation(() => Promise.resolve({})),
+    findRecords: vi.fn().mockImplementation(() => Promise.resolve([])),
+    createRecord: vi.fn().mockImplementation(() => Promise.resolve({})),
+    updateRecord: vi.fn().mockImplementation(() => Promise.resolve({})),
+    deleteRecord: vi.fn().mockImplementation(() => Promise.resolve(true)),
+    inFileMaker: true
+  };
+});
 
 describe('FileMakerToolAdapter', () => {
   let tool;

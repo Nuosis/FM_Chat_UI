@@ -3,7 +3,11 @@ import { registerTools } from '../index';
 import exampleTool from '../exampleTool';
 import sqlGeneratorTool from '../SQLGeneratorTool';
 import { FileMakerToolAdapter } from '../FileMakerToolAdapter';
-import { vi } from 'vitest';
+
+// Define invalid tool for testing validation
+const invalidTool = {
+  // Missing required properties
+};
 
 // Mock the tools
 vi.mock('../exampleTool', () => ({
@@ -91,19 +95,20 @@ describe('Tools Index', () => {
     });
 
     it('should validate tool structure before registration', async () => {
-      const invalidTool = {
+      // Temporarily replace the exampleTool with an invalid tool
+      const originalTool = exampleTool;
+      exampleTool = {
         // Missing required properties
       };
-
-      // Mock one of the tools to be invalid
-      vi.mock('../exampleTool', () => ({
-        default: invalidTool
-      }));
 
       const result = await registerTools(mockService);
 
       expect(result.success).toBe(true); // Still succeeds as some tools registered
       expect(mockService.registerTool).toHaveBeenCalledTimes(1); // Only valid tool registered
+      expect(mockService.registerTool).toHaveBeenCalledWith(sqlGeneratorTool); // Verify correct tool registered
+
+      // Restore the original tool
+      exampleTool = originalTool;
     });
   });
 });

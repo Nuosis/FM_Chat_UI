@@ -22,8 +22,14 @@ export default {
     },
     required: ['description', 'schema']
   },
-  execute: async ({ description, schema }) => {
+  execute: async (input) => {
     try {
+      // Validate input against schema
+      if (!input.description || !input.schema) {
+        throw new Error('Missing required parameters: description and schema');
+      }
+      
+      const { description, schema } = input;
       const sql = await generateFileMakerSQL(description, schema);
 
       // Validate SQL syntax

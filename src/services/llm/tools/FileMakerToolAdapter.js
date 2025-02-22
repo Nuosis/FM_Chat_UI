@@ -1,72 +1,66 @@
-import { handleFMScriptResult, inFileMaker } from '../../../utils/filemaker';
-
-// Global variable and function for FileMaker to call with the result
-window.toolRegistrationResult = null;
-window.registerToolsCallback = (result) => {
-  console.log('Received tool registration result:', result);
-  try {
-    window.toolRegistrationResult = JSON.parse(result);
-  } catch (error) {
-    console.error('Error parsing tool registration result:', error);
-    window.toolRegistrationResult = [];
-  }
-};
+import { inFileMaker, findRecords, createRecord, updateRecord, deleteRecord, executeScript } from '../../../utils/filemaker';
 
 export class FileMakerToolAdapter {
-  async executeTool(toolName, parameters) {
+  name = 'filemaker';
+  description = 'Adapter for executing FileMaker tools';
+  schema = {
+    type: 'object',
+    properties: {
+      action: {
+        type: 'string',
+        enum: ['find', 'create', 'update', 'delete', 'script']
+      },
+      layout: { type: 'string' },
+      data: { type: 'object' },
+      scriptName: { type: 'string' },
+      scriptParameter: { type: 'string' }
+    },
+    required: ['action', 'layout']
+  };
+
+  async execute({ action, layout, data, scriptName, scriptParameter }) {
     if (!inFileMaker) {
       throw new Error('FileMaker tools are only available in FileMaker environment');
     }
 
-    try {
-      const response = await performFMScript({
-        action: 'execute',
-        script: 'JS * Fetch Data',
-        scriptParam: {
-          script: `ai * tools * ${toolName}`,
-          ...parameters
-        }
-      });
-      return handleFMScriptResult(response);
-    } catch (error) {
-      throw new Error(`FileMaker tool execution failed: ${error.message}`);
+    if (!layout) {
+      throw new Error('Layout is required');
     }
-  }
 
-  async registerTools() {
-    if (!inFileMaker) {
-      return []; // Return empty array in non-FileMaker environment
-    }
-    console.log("fetching tools from FileMaker");
     try {
-      console.log('Attempting to fetch tools from FileMaker...');
-      if (!window.FileMaker) {
-        throw new Error('FileMaker not available');
+      switch (action) {
+        case 'find':
+          return await findRecords(layout, data);
+
+        case 'create':
+          if (!data) {
+            throw new Error('Data is required for create action');
+          }
+          return await createRecord(layout, data);
+
+        case 'update':
+          if (!data?.id) {
+            throw new Error('Record ID is required for update action');
+          }
+          return await updateRecord(layout, data);
+
+        case 'delete':
+          if (!data?.id) {
+            throw new Error('Record ID is required for delete action');
+          }
+          return await deleteRecord(layout, data.id);
+
+        case 'script':
+          if (!scriptName) {
+            throw new Error('Script name is required for script action');
+          }
+          return await executeScript(layout, scriptName, scriptParameter);
+
+        default:
+          throw new Error('Invalid action');
       }
-      
-      // Reset the result before calling the script
-      window.toolRegistrationResult = null;
-      
-      console.log('Calling ai * ListTools...');
-      window.FileMaker.PerformScript('ai * ListTools', '{}');
-      
-      // Wait for the result to be set
-      let attempts = 0;
-      while (!window.toolRegistrationResult && attempts < 10) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
-      }
-      
-      if (!window.toolRegistrationResult) {
-        console.error('No result received from FileMaker after 5 seconds');
-        return [];
-      }
-      
-      console.log('Received result:', window.toolRegistrationResult);
-      return handleFMScriptResult(window.toolRegistrationResult);
     } catch (error) {
-      console.error('Error fetching tools:', error);
-      throw new Error(`Failed to fetch FileMaker tools: ${error.message}`);
+      throw error; // Pass through the original error
     }
   }
 }
