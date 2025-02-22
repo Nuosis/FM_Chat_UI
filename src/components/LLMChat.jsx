@@ -6,24 +6,12 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ProgressText from './ProgressText';
 import { createLog, LogType } from '../redux/slices/appSlice';
-import {
-  setTemperature,
-  setSystemInstructions,
-  setProvider,
-  setModel,
-  setStreamingEnabled
-} from '../redux/slices/llmSlice';
 import llmServiceFactory from '../services/llm';
 import {
   Box,
   Paper,
   TextField,
   IconButton,
-  Typography,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -31,12 +19,9 @@ import {
   Button,
   Slider,
   Stack,
-  Switch
+  Typography
 } from '@mui/material';
-import {
-  Send as SendIcon,
-  Settings as SettingsIcon
-} from '@mui/icons-material';
+import { Send as SendIcon, Settings as SettingsIcon } from '@mui/icons-material';
 
 const SlideTransition = (props) => {
   return <Slide {...props} direction="left" />;
@@ -48,18 +33,6 @@ const LLMChat = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
-  const [providers] = useState(() => {
-    const factory = llmServiceFactory;
-    return Object.entries(factory.services).map(([key, service]) => ({
-      id: key,
-      name: key.charAt(0).toUpperCase() + key.slice(1),
-      provider: key
-    }));
-  });
-  
-  const [selectedProvider, setSelectedProvider] = useState('');
-  const [models, setModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState('');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const messagesEndRef = useRef(null);
   
@@ -71,132 +44,35 @@ const LLMChat = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Initialize default provider and model
-  useEffect(() => {
-    const defaultProvider = import.meta.env.VITE_DEFAULT_PROVIDER?.toLowerCase();
-    const defaultModel = import.meta.env.VITE_DEFAULT_MODEL;
-
-    if (defaultProvider && providers.find(p => p.provider === defaultProvider)) {
-      handleProviderChange({ target: { value: defaultProvider } });
-      
-      // If we have a default model, set it in the store
-      if (defaultModel) {
-        dispatch(setModel(defaultModel));
-      }
-    }
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (!selectedProvider) return;
-    
-    const fetchModels = async () => {
-      setError(null);
-      dispatch(createLog('Fetching available models...', LogType.INFO));
-      try {
-        const service = await llmServiceFactory.initializeService(selectedProvider);
-        const availableModels = await service.getModels();
-        setModels(availableModels);
-        
-        const defaultModel = import.meta.env.VITE_DEFAULT_MODEL;
-        if (defaultModel && availableModels.includes(defaultModel)) {
-          setSelectedModel(defaultModel);
-          dispatch(setModel(defaultModel));
-        } else if (llmSettings.model && availableModels.includes(llmSettings.model)) {
-          setSelectedModel(llmSettings.model);
-        } else if (availableModels.length > 0) {
-          setSelectedModel(availableModels[0]);
-          dispatch(setModel(availableModels[0]));
-        }
-      } catch (err) {
-        console.error('Error fetching models:', err);
-        dispatch(createLog(`Failed to fetch models: ${err.message}`, LogType.ERROR));
-        setError(`Failed to load models: ${err.message}`);
-      }
-    };
-
-    fetchModels();
-  }, [selectedProvider, dispatch]);
-
-  const handleProviderChange = (event) => {
-    const provider = event.target.value;
-    setSelectedProvider(provider);
-    setSelectedModel('');
-    setModels([]);
-    dispatch(setProvider(provider));
-  };
-
-  const handleModelChange = (event) => {
-    const model = event.target.value;
-    setSelectedModel(model);
-    dispatch(setModel(model));
-  };
-
   const handleSubmit = async () => {
-    if (!input.trim() || !selectedProvider || !selectedModel) return;
+    if (!input.trim() || !llmSettings.provider || !llmSettings.model) return;
 
     const newMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, newMessage]);
     setInput('');
 
     try {
-      let streamedContent = '';
       let assistantMessage = { role: 'assistant', content: <ProgressText text="Thinking..." /> };
       setMessages(prev => [...prev, assistantMessage]);
 
-      const service = await llmServiceFactory.initializeService(selectedProvider);
+      const service = await llmServiceFactory.initializeService(llmSettings.provider);
       
-      if (llmSettings.streamingEnabled) {
-        // Handle streaming updates
-        let streamedContent = '';
-        const handleStreamUpdate = (chunk) => {
-          streamedContent += chunk;
-          setMessages(prev => {
-            const lastMessage = prev[prev.length - 1];
-            // Only update if the content has changed
-            if (lastMessage.content !== streamedContent) {
-              return [
-                ...prev.slice(0, -1),
-                {
-                  role: 'assistant',
-                  content: streamedContent
-                }
-              ];
-            }
-            return prev;
-          });
-        };
+      const response = await service.sendMessage(
+        [
+          { role: 'system', content: llmSettings.systemInstructions },
+          ...messages,
+          newMessage
+        ],
+        {
+          model: llmSettings.model,
+          temperature: llmSettings.temperature
+        }
+      );
 
-        await service.sendMessage(
-          [
-            { role: 'system', content: llmSettings.systemInstructions },
-            ...messages,
-            newMessage
-          ],
-          {
-            model: selectedModel,
-            temperature: llmSettings.temperature
-          },
-          handleStreamUpdate
-        );
-      } else {
-        // Non-streaming mode
-        const response = await service.sendMessage(
-          [
-            { role: 'system', content: llmSettings.systemInstructions },
-            ...messages,
-            newMessage
-          ],
-          {
-            model: selectedModel,
-            temperature: llmSettings.temperature
-          }
-        );
-
-        setMessages(prev => [...prev.slice(0, -1), {
-          role: 'assistant',
-          content: response.content
-        }]);
-      }
+      setMessages(prev => [...prev.slice(0, -1), {
+        role: 'assistant',
+        content: response.content
+      }]);
 
     } catch (err) {
       console.error('Error in chat completion:', err);
@@ -209,13 +85,19 @@ const LLMChat = () => {
   };
 
   return (
-    <Box sx={{ 
+    <Box sx={{
       width: '100%',
-      height: '100vh',
       display: 'flex',
       flexDirection: 'column',
       bgcolor: 'background.default',
-      color: 'text.primary'
+      color: 'text.primary',
+      mt: { xs: '56px', sm: '72px' },
+      minHeight: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 72px)' },
+      '& .MuiPaper-root': {
+        '@media (max-width: 600px)': {
+          maxWidth: '85%'
+        }
+      }
     }}>
       <Snackbar
         open={Boolean(error)}
@@ -231,66 +113,6 @@ const LLMChat = () => {
           }
         }}
       />
-
-      <Box sx={{ 
-        p: 1.5,
-        display: 'flex', 
-        justifyContent: 'flex-end', 
-        gap: 2,
-        borderBottom: 1,
-        borderColor: 'divider'
-      }}>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel>AI Provider</InputLabel>
-          <Select
-            value={selectedProvider}
-            label="AI Provider"
-            onChange={handleProviderChange}
-            sx={{
-              bgcolor: 'background.paper',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'divider'
-              }
-            }}
-          >
-            {providers.map(provider => (
-              <MenuItem key={provider.id} value={provider.provider}>
-                {provider.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel>Model</InputLabel>
-          <Select
-            value={selectedModel}
-            label="Model"
-            onChange={handleModelChange}
-            disabled={!selectedProvider}
-            sx={{
-              bgcolor: 'background.paper',
-              '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'divider'
-              }
-            }}
-          >
-            {models.map(model => (
-              <MenuItem key={model} value={model}>
-                {model}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <IconButton 
-          onClick={() => setSettingsOpen(true)}
-          sx={{ color: 'primary.main' }}
-        >
-          <SettingsIcon />
-        </IconButton>
-      </Box>
-
       <Box sx={{ 
         flex: 1, 
         p: 1.5, 
@@ -417,7 +239,7 @@ const LLMChat = () => {
           />
           <IconButton 
             onClick={handleSubmit}
-            disabled={!input.trim() || !selectedProvider || !selectedModel}
+            disabled={!input.trim() || !llmSettings.provider || !llmSettings.model}
             color="primary"
             sx={{
               bgcolor: 'background.paper',
@@ -480,14 +302,6 @@ const LLMChat = () => {
                 />
               </Box>
               
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Typography>Enable Streaming</Typography>
-                <Switch
-                  checked={llmSettings.streamingEnabled}
-                  onChange={(e) => dispatch(setStreamingEnabled(e.target.checked))}
-                  color="primary"
-                />
-              </Box>
             </Stack>
           </Stack>
         </DialogContent>

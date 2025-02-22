@@ -14,12 +14,6 @@ const createLLMInstance = (config = {}) => {
     async (config) => {
       store.dispatch(createLog(`LLM Request: ${config.method?.toUpperCase()} ${config.url}`, 'debug'));
       store.dispatch(createLog(`Request Headers: ${JSON.stringify(config.headers)}`, 'debug'));
-      
-      // Configure for streaming if specified
-      if (config.data?.stream === true) {
-        config.responseType = 'text';
-      }
-      
       return config;
     },
     (error) => {
@@ -31,10 +25,7 @@ const createLLMInstance = (config = {}) => {
   // Add response interceptor for error handling
   instance.interceptors.response.use(
     (response) => {
-      // Don't log streaming responses to avoid spam
-      if (!response.config.responseType === 'text') {
-        store.dispatch(createLog(`LLM Response Success: ${response.config.method?.toUpperCase()} ${response.config.url}`, 'debug'));
-      }
+      store.dispatch(createLog(`LLM Response Success: ${response.config.method?.toUpperCase()} ${response.config.url}`, 'debug'));
       return response;
     },
     async (error) => {

@@ -30,8 +30,7 @@ export class OpenAIService extends BaseLLMService {
 
     const requestData = {
       model,
-      messages: formattedMessages,
-      stream: false
+      messages: formattedMessages
     };
 
     return this.axios.post(

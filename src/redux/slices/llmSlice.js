@@ -4,8 +4,7 @@ const initialState = {
   temperature: 0.7,
   systemInstructions: 'You are a helpful AI assistant.',
   provider: null,
-  model: null,
-  streamingEnabled: true
+  model: null
 };
 
 const llmSlice = createSlice({
@@ -23,9 +22,6 @@ const llmSlice = createSlice({
     },
     setModel: (state, action) => {
       state.model = action.payload;
-    },
-    setStreamingEnabled: (state, action) => {
-      state.streamingEnabled = action.payload;
     }
   }
 });
@@ -34,8 +30,7 @@ export const {
   setTemperature,
   setSystemInstructions,
   setProvider,
-  setModel,
-  setStreamingEnabled
+  setModel
 } = llmSlice.actions;
 
 export default llmSlice.reducer;

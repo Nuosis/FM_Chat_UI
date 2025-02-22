@@ -4,12 +4,16 @@ import { Provider, useDispatch } from 'react-redux';
 import { store } from './redux/store';
 import { performFMScript, handleFMScriptResult } from './utils/filemaker';
 import { setSchema, createLog, LogType } from './redux/slices/appSlice';
+import Header from './components/Header';
 import LLMChat from './components/LLMChat';
+import LLMAgent from './components/LLMAgent';
 import Spinner from './components/Spinner';
 
 const AppContent = () => {
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(true);
+  const [activeComponent, setActiveComponent] = useState('LLMChat');
 
   useEffect(() => {
     const fetchSchema = async () => {
@@ -31,18 +35,28 @@ const AppContent = () => {
 
     fetchSchema();
   }, [dispatch]);
-
-  return (
-    <Box sx={{ minHeight: '100vh', display: 'flex' }}>
+return (
+  <Box sx={{ display: 'flex' }}>
+    <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Header
+        isCollapsed={isHeaderCollapsed}
+        onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+        setActiveComponent={setActiveComponent}
+        activeComponent={activeComponent}
+      />
       {isLoading ? (
         <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Spinner size={60} />
         </Box>
       ) : (
-        <LLMChat />
+        <>
+          {activeComponent === 'LLMChat' && <LLMChat />}
+          {activeComponent === 'LLMAgent' && <LLMAgent />}
+        </>
       )}
     </Box>
-  );
+  </Box>
+);
 };
 
 function App() {
