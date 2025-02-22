@@ -1,208 +1,120 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { SQLGeneratorTool } from '../SQLGeneratorTool';
+import sqlGeneratorTool from '../SQLGeneratorTool';
+import { vi } from 'vitest';
+import llmServiceFactory from '../../../llm';
+
+// Mock LLM service factory
+vi.mock('../../../llm', () => ({
+  default: {
+    initializeService: vi.fn().mockResolvedValue({
+      sendMessage: vi.fn().mockResolvedValue({
+        content: 'SELECT * FROM users'
+      })
+    })
+  }
+}));
 
 describe('SQLGeneratorTool', () => {
   let tool;
 
   beforeEach(() => {
-    tool = new SQLGeneratorTool();
+    tool = sqlGeneratorTool;
+    vi.clearAllMocks();
   });
 
   describe('Tool Definition', () => {
     it('should have required properties', () => {
-      expect(tool.name).toBe('sqlGenerator');
-      expect(tool.description).toContain('Generate SQL queries');
-      expect(tool.schema).toBeDefined();
+      expect(tool.name).toBe('sql_generator');
+      expect(tool.description).toContain('Generate and validate SQL SELECT statements');
+      expect(tool.parameters).toBeDefined();
     });
 
-    it('should have valid JSON schema', () => {
-      expect(tool.schema).toEqual({
+    it('should have valid parameters schema', () => {
+      expect(tool.parameters).toEqual({
         type: 'object',
         properties: {
-          tables: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                name: { type: 'string' },
-                columns: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      name: { type: 'string' },
-                      type: { type: 'string' }
-                    },
-                    required: ['name', 'type']
-                  }
-                }
-              },
-              required: ['name', 'columns']
-            }
+          description: {
+            type: 'string',
+            description: expect.any(String)
           },
-          query: { type: 'string' }
+          schema: {
+            type: 'object',
+            description: expect.any(String)
+          }
         },
-        required: ['tables', 'query']
+        required: ['description', 'schema']
       });
     });
   });
 
   describe('execute', () => {
-    const validInput = {
-      tables: [
-        {
-          name: 'users',
-          columns: [
-            { name: 'id', type: 'INTEGER' },
-            { name: 'name', type: 'TEXT' },
-            { name: 'email', type: 'TEXT' }
-          ]
+    const mockStore = {
+      getState: vi.fn().mockReturnValue({
+        llm: {
+          provider: 'test-provider',
+          model: 'test-model'
         }
-      ],
-      query: 'Find all users'
+      })
     };
 
-    it('should generate SELECT query', async () => {
-      const result = await tool.execute({
-        ...validInput,
-        query: 'Find all users'
-      });
+    vi.mock('../../../redux/store', () => ({
+      store: mockStore
+    }));
 
-      expect(result).toContain('SELECT');
-      expect(result).toContain('FROM users');
-      expect(result).toContain('id');
-      expect(result).toContain('name');
-      expect(result).toContain('email');
-    });
-
-    it('should generate INSERT query', async () => {
-      const result = await tool.execute({
-        ...validInput,
-        query: 'Add a new user'
-      });
-
-      expect(result).toContain('INSERT INTO users');
-      expect(result).toContain('VALUES');
-      expect(result).toContain('id');
-      expect(result).toContain('name');
-      expect(result).toContain('email');
-    });
-
-    it('should generate UPDATE query', async () => {
-      const result = await tool.execute({
-        ...validInput,
-        query: 'Update user email'
-      });
-
-      expect(result).toContain('UPDATE users');
-      expect(result).toContain('SET');
-      expect(result).toContain('WHERE');
-      expect(result).toContain('email');
-    });
-
-    it('should generate DELETE query', async () => {
-      const result = await tool.execute({
-        ...validInput,
-        query: 'Delete a user'
-      });
-
-      expect(result).toContain('DELETE FROM users');
-      expect(result).toContain('WHERE');
-    });
-
-    it('should handle multiple tables', async () => {
-      const result = await tool.execute({
-        tables: [
-          {
-            name: 'users',
-            columns: [
-              { name: 'id', type: 'INTEGER' },
-              { name: 'name', type: 'TEXT' }
-            ]
-          },
-          {
-            name: 'orders',
-            columns: [
-              { name: 'id', type: 'INTEGER' },
-              { name: 'user_id', type: 'INTEGER' },
-              { name: 'total', type: 'DECIMAL' }
-            ]
+    const validInput = {
+      description: 'Find all active customers',
+      schema: {
+        tables: {
+          Customers: {
+            fields: ['CustomerID', 'Name', 'Status'],
+            relationships: []
           }
-        ],
-        query: 'Find all orders for each user'
-      });
+        }
+      }
+    };
 
-      expect(result).toContain('JOIN');
-      expect(result).toContain('users');
-      expect(result).toContain('orders');
-      expect(result).toContain('user_id');
+    it('should generate valid SQL query', async () => {
+      const result = await tool.execute(validInput);
+      
+      expect(result).toEqual({
+        sql: expect.stringContaining('SELECT'),
+        valid: true,
+        scriptParams: {
+          query: expect.stringContaining('SELECT'),
+          tables: expect.arrayContaining(['users'])
+        }
+      });
     });
 
-    it('should validate input schema', async () => {
+    it('should handle invalid SQL generation', async () => {
+      const llmService = await llmServiceFactory.initializeService();
+      llmService.sendMessage.mockResolvedValueOnce({
+        content: 'INVALID SQL STATEMENT'
+      });
+
+      const result = await tool.execute(validInput);
+      
+      expect(result).toEqual({
+        sql: 'INVALID SQL STATEMENT',
+        valid: false,
+        error: expect.any(String)
+      });
+    });
+
+    it('should validate input parameters', async () => {
       const invalidInput = {
-        tables: [
-          {
-            name: 'users',
-            // Missing columns
-          }
-        ],
-        query: 'Find all users'
+        description: 'Find customers'
+        // Missing schema
       };
 
       await expect(tool.execute(invalidInput)).rejects.toThrow();
     });
 
-    it('should handle empty tables array', async () => {
-      const input = {
-        tables: [],
-        query: 'Find all users'
-      };
+    it('should handle LLM service errors', async () => {
+      const llmService = await llmServiceFactory.initializeService();
+      llmService.sendMessage.mockRejectedValueOnce(new Error('LLM error'));
 
-      await expect(tool.execute(input)).rejects.toThrow('No tables provided');
-    });
-
-    it('should handle empty query', async () => {
-      const input = {
-        ...validInput,
-        query: ''
-      };
-
-      await expect(tool.execute(input)).rejects.toThrow('Query is required');
-    });
-
-    it('should handle invalid column types', async () => {
-      const input = {
-        tables: [
-          {
-            name: 'users',
-            columns: [
-              { name: 'id', type: 'INVALID_TYPE' }
-            ]
-          }
-        ],
-        query: 'Find all users'
-      };
-
-      await expect(tool.execute(input)).rejects.toThrow('Invalid column type');
-    });
-
-    it('should sanitize table and column names', async () => {
-      const result = await tool.execute({
-        tables: [
-          {
-            name: 'user-table',
-            columns: [
-              { name: 'user-id', type: 'INTEGER' },
-              { name: 'user-name', type: 'TEXT' }
-            ]
-          }
-        ],
-        query: 'Find all users'
-      });
-
-      expect(result).toContain('`user-table`');
-      expect(result).toContain('`user-id`');
-      expect(result).toContain('`user-name`');
+      await expect(tool.execute(validInput)).rejects.toThrow('Failed to generate SQL');
     });
   });
 });

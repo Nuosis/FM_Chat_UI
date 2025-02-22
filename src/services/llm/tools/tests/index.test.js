@@ -1,204 +1,109 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { registerTool, getRegisteredTools, clearTools } from '../index';
-import { ExampleTool } from '../exampleTool';
-import { SQLGeneratorTool } from '../SQLGeneratorTool';
+import { registerTools } from '../index';
+import exampleTool from '../exampleTool';
+import sqlGeneratorTool from '../SQLGeneratorTool';
 import { FileMakerToolAdapter } from '../FileMakerToolAdapter';
+import { vi } from 'vitest';
 
 // Mock the tools
 vi.mock('../exampleTool', () => ({
-  ExampleTool: class {
-    name = 'example';
-    description = 'Example tool';
-    schema = {};
-    execute = vi.fn();
+  default: {
+    name: 'math_operations',
+    description: 'Math operations tool',
+    parameters: {
+      type: 'object',
+      properties: {
+        operation: { type: 'string' },
+        numbers: { type: 'array' }
+      }
+    },
+    execute: vi.fn()
   }
 }));
 
 vi.mock('../SQLGeneratorTool', () => ({
-  SQLGeneratorTool: class {
-    name = 'sqlGenerator';
-    description = 'SQL Generator tool';
-    schema = {};
-    execute = vi.fn();
+  default: {
+    name: 'sql_generator',
+    description: 'SQL Generator tool',
+    parameters: {
+      type: 'object',
+      properties: {
+        description: { type: 'string' },
+        schema: { type: 'object' }
+      }
+    },
+    execute: vi.fn()
   }
 }));
 
 vi.mock('../FileMakerToolAdapter', () => ({
-  FileMakerToolAdapter: class {
-    name = 'filemaker';
-    description = 'FileMaker tool';
-    schema = {};
-    execute = vi.fn();
-  }
+  FileMakerToolAdapter: vi.fn().mockImplementation(() => ({
+    registerTools: vi.fn().mockResolvedValue([]),
+    executeTool: vi.fn()
+  }))
+}));
+
+// Mock inFileMaker
+vi.mock('../../../utils/filemaker', () => ({
+  inFileMaker: false
 }));
 
 describe('Tools Index', () => {
+  let mockService;
+
   beforeEach(() => {
-    clearTools();
+    mockService = {
+      registerTool: vi.fn()
+    };
+    vi.clearAllMocks();
   });
 
-  describe('registerTool', () => {
-    it('should register a valid tool', () => {
-      const tool = new ExampleTool();
-      registerTool(tool);
+  describe('registerTools', () => {
+    it('should register local tools', async () => {
+      const result = await registerTools(mockService);
 
-      const tools = getRegisteredTools();
-      expect(tools).toHaveLength(1);
-      expect(tools[0]).toBe(tool);
+      expect(result.success).toBe(true);
+      expect(result.toolCount).toBe(2); // exampleTool and sqlGeneratorTool
+      expect(mockService.registerTool).toHaveBeenCalledTimes(2);
+      expect(mockService.registerTool).toHaveBeenCalledWith(exampleTool);
+      expect(mockService.registerTool).toHaveBeenCalledWith(sqlGeneratorTool);
     });
 
-    it('should not register duplicate tools', () => {
-      const tool = new ExampleTool();
-      registerTool(tool);
-      registerTool(tool);
+    it('should handle tool registration errors', async () => {
+      mockService.registerTool.mockImplementationOnce(() => {
+        throw new Error('Registration failed');
+      });
 
-      const tools = getRegisteredTools();
-      expect(tools).toHaveLength(1);
-      expect(tools[0]).toBe(tool);
+      const result = await registerTools(mockService);
+
+      expect(result.success).toBe(true); // Still succeeds as some tools registered
+      expect(result.toolCount).toBe(2); // Both tools still counted
     });
 
-    it('should not register tools with duplicate names', () => {
-      const tool1 = new ExampleTool();
-      const tool2 = {
-        name: 'example',
-        description: 'Different tool, same name',
-        schema: {},
-        execute: () => {}
+    it('should not register FileMaker tools when not in FileMaker', async () => {
+      const result = await registerTools(mockService);
+
+      expect(result.success).toBe(true);
+      expect(result.toolCount).toBe(2); // Only local tools
+      expect(mockService.registerTool).not.toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'filemaker' })
+      );
+    });
+
+    it('should validate tool structure before registration', async () => {
+      const invalidTool = {
+        // Missing required properties
       };
 
-      registerTool(tool1);
-      expect(() => registerTool(tool2)).toThrow('Tool with name "example" already registered');
-    });
+      // Mock one of the tools to be invalid
+      vi.mock('../exampleTool', () => ({
+        default: invalidTool
+      }));
 
-    it('should validate tool structure', () => {
-      const invalidTools = [
-        { description: 'Missing name' },
-        { name: 'test' },
-        { name: 'test', description: 'Missing execute' },
-        { name: 'test', execute: () => {} },
-        { name: 'test', description: 'Missing schema', execute: () => {} }
-      ];
+      const result = await registerTools(mockService);
 
-      invalidTools.forEach(tool => {
-        expect(() => registerTool(tool)).toThrow();
-      });
-
-      expect(getRegisteredTools()).toHaveLength(0);
-    });
-
-    it('should validate tool name format', () => {
-      const invalidNames = [
-        '',
-        ' ',
-        'Invalid Name',
-        'invalid-name!',
-        '123name'
-      ];
-
-      invalidNames.forEach(name => {
-        const tool = {
-          name,
-          description: 'Test tool',
-          schema: {},
-          execute: () => {}
-        };
-        expect(() => registerTool(tool)).toThrow('Invalid tool name');
-      });
-    });
-  });
-
-  describe('getRegisteredTools', () => {
-    it('should return empty array when no tools registered', () => {
-      expect(getRegisteredTools()).toEqual([]);
-    });
-
-    it('should return all registered tools', () => {
-      const tools = [
-        new ExampleTool(),
-        new SQLGeneratorTool(),
-        new FileMakerToolAdapter()
-      ];
-
-      tools.forEach(tool => registerTool(tool));
-
-      const registeredTools = getRegisteredTools();
-      expect(registeredTools).toHaveLength(tools.length);
-      tools.forEach(tool => {
-        expect(registeredTools).toContain(tool);
-      });
-    });
-
-    it('should return tools in registration order', () => {
-      const tool1 = new ExampleTool();
-      const tool2 = new SQLGeneratorTool();
-      const tool3 = new FileMakerToolAdapter();
-
-      registerTool(tool1);
-      registerTool(tool2);
-      registerTool(tool3);
-
-      const tools = getRegisteredTools();
-      expect(tools[0]).toBe(tool1);
-      expect(tools[1]).toBe(tool2);
-      expect(tools[2]).toBe(tool3);
-    });
-
-    it('should return a copy of the tools array', () => {
-      const tool = new ExampleTool();
-      registerTool(tool);
-
-      const tools1 = getRegisteredTools();
-      const tools2 = getRegisteredTools();
-
-      expect(tools1).not.toBe(tools2);
-      expect(tools1).toEqual(tools2);
-    });
-  });
-
-  describe('clearTools', () => {
-    it('should remove all registered tools', () => {
-      const tools = [
-        new ExampleTool(),
-        new SQLGeneratorTool(),
-        new FileMakerToolAdapter()
-      ];
-
-      tools.forEach(tool => registerTool(tool));
-      expect(getRegisteredTools()).toHaveLength(tools.length);
-
-      clearTools();
-      expect(getRegisteredTools()).toHaveLength(0);
-    });
-
-    it('should allow registering tools after clearing', () => {
-      const tool1 = new ExampleTool();
-      registerTool(tool1);
-      clearTools();
-
-      const tool2 = new SQLGeneratorTool();
-      registerTool(tool2);
-
-      const tools = getRegisteredTools();
-      expect(tools).toHaveLength(1);
-      expect(tools[0]).toBe(tool2);
-    });
-  });
-
-  describe('Tool Integration', () => {
-    it('should maintain tool independence', async () => {
-      const example = new ExampleTool();
-      const sql = new SQLGeneratorTool();
-      const filemaker = new FileMakerToolAdapter();
-
-      registerTool(example);
-      registerTool(sql);
-      registerTool(filemaker);
-
-      // Each tool should maintain its own state and functionality
-      await example.execute({ text: 'test', operation: 'uppercase' });
-      expect(example.execute).toHaveBeenCalled();
-      expect(sql.execute).not.toHaveBeenCalled();
-      expect(filemaker.execute).not.toHaveBeenCalled();
+      expect(result.success).toBe(true); // Still succeeds as some tools registered
+      expect(mockService.registerTool).toHaveBeenCalledTimes(1); // Only valid tool registered
     });
   });
 });

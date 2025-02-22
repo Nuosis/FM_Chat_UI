@@ -1,12 +1,13 @@
 import { BaseLLMService } from './BaseLLMService';
 
 export class AnthropicService extends BaseLLMService {
-  constructor() {
+  constructor(apiKey) {
     super('ANTHROPIC');
+    this.apiKey = apiKey;
   }
 
   initialize() {
-    super.initialize();
+    super.initialize(this.apiKey);
   }
 
   async formatAndSendRequest(messages, options = {}) {

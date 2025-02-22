@@ -1,201 +1,148 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ExampleTool } from '../exampleTool';
+import mathTool from '../exampleTool';
 
-describe('ExampleTool', () => {
+describe('Math Operations Tool', () => {
   let tool;
 
   beforeEach(() => {
-    tool = new ExampleTool();
+    tool = mathTool;
   });
 
   describe('Tool Definition', () => {
     it('should have required properties', () => {
-      expect(tool.name).toBe('example');
-      expect(tool.description).toContain('example tool');
-      expect(tool.schema).toBeDefined();
+      expect(tool.name).toBe('math_operations');
+      expect(tool.description).toContain('math operations');
+      expect(tool.parameters).toBeDefined();
     });
 
-    it('should have valid JSON schema', () => {
-      expect(tool.schema).toEqual({
+    it('should have valid parameters schema', () => {
+      expect(tool.parameters).toEqual({
         type: 'object',
         properties: {
-          text: {
-            type: 'string',
-            description: 'Text to process'
-          },
           operation: {
             type: 'string',
-            enum: ['uppercase', 'lowercase', 'reverse'],
-            description: 'Operation to perform on the text'
+            enum: ['add', 'subtract', 'multiply', 'divide'],
+            description: expect.any(String)
+          },
+          numbers: {
+            type: 'array',
+            items: { type: 'number' },
+            minItems: 2,
+            description: expect.any(String)
           }
         },
-        required: ['text', 'operation']
+        required: ['operation', 'numbers']
       });
     });
   });
 
   describe('execute', () => {
-    describe('uppercase operation', () => {
-      it('should convert text to uppercase', async () => {
+    describe('add operation', () => {
+      it('should add numbers correctly', async () => {
         const result = await tool.execute({
-          text: 'hello world',
-          operation: 'uppercase'
+          operation: 'add',
+          numbers: [1, 2, 3, 4, 5]
         });
-
-        expect(result).toBe('HELLO WORLD');
+        expect(result).toBe(15);
       });
 
-      it('should handle already uppercase text', async () => {
+      it('should handle negative numbers', async () => {
         const result = await tool.execute({
-          text: 'HELLO WORLD',
-          operation: 'uppercase'
+          operation: 'add',
+          numbers: [-1, -2, 3]
         });
-
-        expect(result).toBe('HELLO WORLD');
-      });
-
-      it('should handle mixed case text', async () => {
-        const result = await tool.execute({
-          text: 'HeLLo WoRLD',
-          operation: 'uppercase'
-        });
-
-        expect(result).toBe('HELLO WORLD');
+        expect(result).toBe(0);
       });
     });
 
-    describe('lowercase operation', () => {
-      it('should convert text to lowercase', async () => {
+    describe('subtract operation', () => {
+      it('should subtract numbers correctly', async () => {
         const result = await tool.execute({
-          text: 'HELLO WORLD',
-          operation: 'lowercase'
+          operation: 'subtract',
+          numbers: [10, 3, 2]
         });
-
-        expect(result).toBe('hello world');
+        expect(result).toBe(5);
       });
 
-      it('should handle already lowercase text', async () => {
+      it('should handle negative numbers', async () => {
         const result = await tool.execute({
-          text: 'hello world',
-          operation: 'lowercase'
+          operation: 'subtract',
+          numbers: [0, -5, -3]
         });
-
-        expect(result).toBe('hello world');
-      });
-
-      it('should handle mixed case text', async () => {
-        const result = await tool.execute({
-          text: 'HeLLo WoRLD',
-          operation: 'lowercase'
-        });
-
-        expect(result).toBe('hello world');
+        expect(result).toBe(8);
       });
     });
 
-    describe('reverse operation', () => {
-      it('should reverse text', async () => {
+    describe('multiply operation', () => {
+      it('should multiply numbers correctly', async () => {
         const result = await tool.execute({
-          text: 'hello world',
-          operation: 'reverse'
+          operation: 'multiply',
+          numbers: [2, 3, 4]
         });
-
-        expect(result).toBe('dlrow olleh');
+        expect(result).toBe(24);
       });
 
-      it('should handle palindromes', async () => {
+      it('should handle zero', async () => {
         const result = await tool.execute({
-          text: 'racecar',
-          operation: 'reverse'
+          operation: 'multiply',
+          numbers: [5, 0, 3]
         });
+        expect(result).toBe(0);
+      });
+    });
 
-        expect(result).toBe('racecar');
+    describe('divide operation', () => {
+      it('should divide numbers correctly', async () => {
+        const result = await tool.execute({
+          operation: 'divide',
+          numbers: [12, 3, 2]
+        });
+        expect(result).toBe(2);
       });
 
-      it('should preserve spaces', async () => {
+      it('should handle decimal results', async () => {
         const result = await tool.execute({
-          text: 'hello  world',
-          operation: 'reverse'
+          operation: 'divide',
+          numbers: [10, 4]
         });
-
-        expect(result).toBe('dlrow  olleh');
-      });
-
-      it('should handle single character', async () => {
-        const result = await tool.execute({
-          text: 'a',
-          operation: 'reverse'
-        });
-
-        expect(result).toBe('a');
+        expect(result).toBe(2.5);
       });
     });
 
     describe('error handling', () => {
-      it('should handle missing text', async () => {
-        await expect(tool.execute({
-          operation: 'uppercase'
-        })).rejects.toThrow('Text is required');
-      });
-
       it('should handle missing operation', async () => {
         await expect(tool.execute({
-          text: 'hello world'
-        })).rejects.toThrow('Operation is required');
+          numbers: [1, 2, 3]
+        })).rejects.toThrow();
+      });
+
+      it('should handle missing numbers', async () => {
+        await expect(tool.execute({
+          operation: 'add'
+        })).rejects.toThrow();
       });
 
       it('should handle invalid operation', async () => {
         await expect(tool.execute({
-          text: 'hello world',
-          operation: 'invalid'
-        })).rejects.toThrow('Invalid operation');
+          operation: 'power',
+          numbers: [2, 3]
+        })).rejects.toThrow('Unknown operation: power');
       });
 
-      it('should handle empty text', async () => {
-        const result = await tool.execute({
-          text: '',
-          operation: 'uppercase'
-        });
-
-        expect(result).toBe('');
-      });
-
-      it('should handle whitespace text', async () => {
-        const result = await tool.execute({
-          text: '   ',
-          operation: 'uppercase'
-        });
-
-        expect(result).toBe('   ');
-      });
-
-      it('should handle special characters', async () => {
-        const result = await tool.execute({
-          text: 'Hello! @World#',
-          operation: 'uppercase'
-        });
-
-        expect(result).toBe('HELLO! @WORLD#');
+      it('should handle less than 2 numbers', async () => {
+        await expect(tool.execute({
+          operation: 'add',
+          numbers: [1]
+        })).rejects.toThrow();
       });
     });
 
     describe('input validation', () => {
-      it('should validate input against schema', async () => {
-        const invalidInput = {
-          text: 123, // should be string
-          operation: 'uppercase'
-        };
-
-        await expect(tool.execute(invalidInput)).rejects.toThrow();
-      });
-
-      it('should validate operation enum values', async () => {
-        const invalidInput = {
-          text: 'hello',
-          operation: 'capitalize' // not in enum
-        };
-
-        await expect(tool.execute(invalidInput)).rejects.toThrow();
+      it('should validate number array', async () => {
+        await expect(tool.execute({
+          operation: 'add',
+          numbers: ['1', '2'] // should be numbers, not strings
+        })).rejects.toThrow();
       });
 
       it('should handle null input', async () => {

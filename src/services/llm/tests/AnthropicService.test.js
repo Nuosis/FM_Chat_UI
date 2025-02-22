@@ -3,15 +3,19 @@ import { AnthropicService } from '../AnthropicService';
 import axiosLLM from '../axiosLLM';
 
 // Mock axiosLLM
-vi.mock('../axiosLLM', () => ({
-  default: {
+vi.mock('../axiosLLM', () => {
+  const mockAxiosInstance = {
     post: vi.fn(),
     interceptors: {
       request: { use: vi.fn() },
       response: { use: vi.fn() }
     }
-  }
-}));
+  };
+  
+  return {
+    default: vi.fn().mockReturnValue(mockAxiosInstance)
+  };
+});
 
 describe('AnthropicService', () => {
   let service;
@@ -19,6 +23,7 @@ describe('AnthropicService', () => {
 
   beforeEach(() => {
     service = new AnthropicService(mockApiKey);
+    service.initialize(mockApiKey);
     vi.clearAllMocks();
   });
 
