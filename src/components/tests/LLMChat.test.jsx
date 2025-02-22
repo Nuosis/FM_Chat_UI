@@ -2,11 +2,16 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import configureStore from 'redux-mock-store';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import LLMChat from '../LLMChat';
 import llmServiceFactory from '../../services/llm';
 
 // Mock the llmServiceFactory
-jest.mock('../services/llm');
+vi.mock('../../services/llm', () => ({
+  default: {
+    getService: vi.fn()
+  }
+}));
 
 const mockStore = configureStore([]);
 
@@ -15,9 +20,12 @@ describe('LLMChat Component', () => {
   let mockService;
 
   beforeEach(() => {
+    // Mock scrollIntoView
+    Element.prototype.scrollIntoView = vi.fn();
+
     mockService = {
-      sendMessage: jest.fn(),
-      getTools: jest.fn().mockReturnValue([
+      sendMessage: vi.fn().mockResolvedValue({ content: 'Mock response' }),
+      getTools: vi.fn().mockReturnValue([
         { name: 'exampleTool', description: 'Example tool description' },
         { name: 'sqlGenerator', description: 'SQL generation tool' }
       ])
@@ -34,33 +42,36 @@ describe('LLMChat Component', () => {
         registeredTools: {
           error: null
         }
+      },
+      app: {
+        messages: []
       }
     });
   });
 
-  it('should include registered tools in LLM calls', async () => {
+  it('should show tool registration errors', () => {
+    store = mockStore({
+      llm: {
+        provider: 'openai',
+        model: 'gpt-4',
+        temperature: 0.7,
+        systemInstructions: 'You are a helpful assistant',
+        registeredTools: {
+          error: 'Failed to register some tools'
+        }
+      },
+      app: {
+        messages: []
+      }
+    });
+
     render(
       <Provider store={store}>
         <LLMChat />
       </Provider>
     );
 
-    const input = screen.getByPlaceholderText('Type your message...');
-    fireEvent.change(input, { target: { value: 'Hello' } });
-    fireEvent.click(screen.getByRole('button', { name: /send/i }));
-
-    await waitFor(() => {
-      expect(mockService.sendMessage).toHaveBeenCalledWith(
-        expect.arrayContaining([
-          expect.objectContaining({
-            role: 'system',
-            content: expect.stringContaining('You are a helpful AI assistant')
-          })
-        ]),
-        expect.any(Object),
-        expect.any(Function)
-      );
-    });
+    expect(screen.getByText(/Some tools failed to register/i)).toBeInTheDocument();
   });
 
   it('should handle tool queries correctly', async () => {
@@ -72,7 +83,10 @@ describe('LLMChat Component', () => {
 
     const input = screen.getByPlaceholderText('Type your message...');
     fireEvent.change(input, { target: { value: 'What tools are available?' } });
-    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    
+    // Find send button by its icon
+    const sendButton = screen.getByTestId('SendIcon').closest('button');
+    fireEvent.click(sendButton);
 
     await waitFor(() => {
       expect(mockService.getTools).toHaveBeenCalled();
@@ -93,32 +107,45 @@ describe('LLMChat Component', () => {
 
     const input = screen.getByPlaceholderText('Type your message...');
     fireEvent.change(input, { target: { value: 'What tools are available?' } });
-    fireEvent.click(screen.getByRole('button', { name: /send/i }));
+    
+    // Find send button by its icon
+    const sendButton = screen.getByTestId('SendIcon').closest('button');
+    fireEvent.click(sendButton);
 
     await waitFor(() => {
       expect(screen.getByText(/No tools are currently available/i)).toBeInTheDocument();
     });
   });
 
-  it('should show tool registration errors', () => {
-    store = mockStore({
-      llm: {
-        provider: 'openai',
-        model: 'gpt-4',
-        temperature: 0.7,
-        systemInstructions: 'You are a helpful assistant',
-        registeredTools: {
-          error: 'Failed to register some tools'
-        }
-      }
-    });
-
+  it('should include registered tools in LLM calls', async () => {
     render(
       <Provider store={store}>
         <LLMChat />
       </Provider>
     );
 
-    expect(screen.getByText(/Some tools failed to register/i)).toBeInTheDocument();
+    const input = screen.getByPlaceholderText('Type your message...');
+    fireEvent.change(input, { target: { value: 'Hello' } });
+    
+    // Find send button by its icon
+    const sendButton = screen.getByTestId('SendIcon').closest('button');
+    fireEvent.click(sendButton);
+
+    await waitFor(() => {
+      expect(mockService.sendMessage).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: 'system',
+            content: expect.stringContaining('You are a helpful AI assistant')
+          })
+        ]),
+        expect.any(Object),
+        expect.any(Function)
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Mock response')).toBeInTheDocument();
+    });
   });
 });
