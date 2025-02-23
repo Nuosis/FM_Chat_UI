@@ -13,16 +13,19 @@ export const PROVIDERS = {
   },
   ANTHROPIC: {
     name: 'Anthropic',
-    endpoint: 'https://api.anthropic.com/v1/messages',
+    endpoint: process.env.NODE_ENV === 'development'
+      ? '/anthropic/v1/messages'
+      : 'https://api.anthropic.com/v1/messages',
     headers: {
-      'Content-Type': 'application/json',
+      'accept': 'application/json',
+      'content-type': 'application/json',
       'x-api-key': '{apiKey}', // apiKey will be replaced at runtime
       'anthropic-version': '2023-06-01'
     },
     models: [
       'claude-3-5-sonnet-latest',
       'claude-3-5-haiku-latest',
-      'claude-3-opus-latest1'
+      'claude-3-opus-latest'
     ]
   },
   DEEPSEEK: {

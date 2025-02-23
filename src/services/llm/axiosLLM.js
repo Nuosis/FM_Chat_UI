@@ -6,6 +6,7 @@ import { createLog } from '../../redux/slices/appSlice';
 const createLLMInstance = (config = {}) => {
   const instance = axios.create({
     timeout: 120000, // 2 minute timeout for LLM responses
+    withCredentials: false, // Disable withCredentials for LLM services
     ...config
   });
 
@@ -39,11 +40,15 @@ const createLLMInstance = (config = {}) => {
       const message = error.response?.data?.message || error.message;
       const config = error.config;
       
+      // Log the raw error object first
+      console.error('Raw error object:', error);
+      
       store.dispatch(createLog(`LLM Error Details:
 Status: ${status}
-URL: ${config.method?.toUpperCase()} ${config.url}
+URL: ${config?.method?.toUpperCase()} ${config?.url}
 Message: ${message}
-Response Data: ${JSON.stringify(error.response?.data)}`, 'error'));
+Response Data: ${JSON.stringify(error.response?.data)}
+Stack: ${error.stack}`, 'error'));
       
       return Promise.reject(error);
     }

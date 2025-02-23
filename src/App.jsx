@@ -28,7 +28,7 @@ const AppContent = () => {
         // Only fetch schema if we're in FileMaker
         if (inFileMaker) {
           dispatch(createLog('Fetching schema...', LogType.INFO));
-          const request = {action: 'requestSchema'}
+          const request = {parameter: {action: 'requestSchema'}}
           const result = await performFMScript(request);
           const schema = handleFMScriptResult(result);
           dispatch(setSchema(schema));

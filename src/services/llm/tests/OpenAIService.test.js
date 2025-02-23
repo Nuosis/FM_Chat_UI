@@ -25,14 +25,16 @@ describe('OpenAIService', () => {
   beforeEach(() => {
     service = new OpenAIService();
     service.initialize(mockApiKey);
-    service.config = {
-      endpoint: '/openai/chat/completions',
-      modelsEndpoint: '/openai/models',
-      headers: {
-        'Authorization': `Bearer ${mockApiKey}`
-      }
-    };
     vi.clearAllMocks();
+  });
+
+  describe('initialization', () => {
+    it('should initialize with correct endpoints from provider config', () => {
+      const testService = new OpenAIService();
+      testService.initialize(mockApiKey);
+      expect(testService.config.endpoint).toBe('https://api.openai.com/v1/chat/completions');
+      expect(testService.config.modelsEndpoint).toBe('https://api.openai.com/v1/models');
+    });
   });
 
   describe('fetchModels', () => {
@@ -53,7 +55,7 @@ describe('OpenAIService', () => {
       const models = await service.fetchModels();
       expect(models).toEqual(['gpt-4', 'gpt-3.5-turbo']);
       expect(axiosLLM().get).toHaveBeenCalledWith(
-        '/openai/models',
+        'https://api.openai.com/v1/models',
         expect.objectContaining({
           headers: expect.objectContaining({
             'Authorization': `Bearer ${mockApiKey}`
@@ -95,7 +97,7 @@ describe('OpenAIService', () => {
       await service.formatAndSendRequest(mockMessages, mockOptions);
 
       expect(axiosLLM().post).toHaveBeenCalledWith(
-        '/openai/chat/completions',
+        'https://api.openai.com/v1/chat/completions',
         {
           model: mockOptions.model,
           messages: mockMessages.map(msg => ({
@@ -147,7 +149,7 @@ describe('OpenAIService', () => {
       await service.formatAndSendRequest(messagesWithToolCalls, mockOptions);
 
       expect(axiosLLM().post).toHaveBeenCalledWith(
-        '/openai/chat/completions',
+        'https://api.openai.com/v1/chat/completions',
         {
           model: mockOptions.model,
           messages: [
@@ -177,7 +179,8 @@ describe('OpenAIService', () => {
         },
         {
           headers: {
-            'Authorization': `Bearer ${mockApiKey}`
+            'Authorization': `Bearer ${mockApiKey}`,
+            'Content-Type': 'application/json'
           }
         }
       );

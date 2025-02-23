@@ -38,7 +38,8 @@ describe('axiosLLM', () => {
 
   it('should create axios instance with 2 minute timeout', () => {
     expect(axios.create).toHaveBeenCalledWith({
-      timeout: 120000
+      timeout: 120000,
+      withCredentials: false
     });
   });
 
@@ -55,11 +56,14 @@ describe('axiosLLM', () => {
       const result = await successFn(config);
 
       expect(result).toEqual(config);
-      expect(store.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          payload: expect.stringContaining('LLM Request: POST /test')
-        })
-      );
+      expect(store.dispatch).toHaveBeenCalledWith({
+        type: 'app/createLog',
+        payload: {
+          message: 'LLM Request: POST /test',
+          type: 'debug',
+          timestamp: expect.any(String)
+        }
+      });
     });
 
     it('should log request errors', async () => {
@@ -69,11 +73,14 @@ describe('axiosLLM', () => {
       const [, errorFn] = instance.interceptors.request.use.mock.calls[0];
       await expect(errorFn(error)).rejects.toThrow('Test error');
       
-      expect(store.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          payload: expect.stringContaining('LLM Request Error: Test error')
-        })
-      );
+      expect(store.dispatch).toHaveBeenCalledWith({
+        type: 'app/createLog',
+        payload: {
+          message: 'LLM Request Error: Test error',
+          type: 'error',
+          timestamp: expect.any(String)
+        }
+      });
     });
   });
 
@@ -92,11 +99,14 @@ describe('axiosLLM', () => {
       const result = await successFn(response);
 
       expect(result).toEqual(response);
-      expect(store.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          payload: expect.stringContaining('LLM Response Success: GET /test')
-        })
-      );
+      expect(store.dispatch).toHaveBeenCalledWith({
+        type: 'app/createLog',
+        payload: {
+          message: 'LLM Response Success: GET /test',
+          type: 'debug',
+          timestamp: expect.any(String)
+        }
+      });
     });
 
     it('should handle timeout errors', async () => {
@@ -113,11 +123,14 @@ describe('axiosLLM', () => {
       const [, errorFn] = instance.interceptors.response.use.mock.calls[0];
       await expect(errorFn(error)).rejects.toThrow('LLM request timed out after 2 minutes');
       
-      expect(store.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          payload: expect.stringContaining('LLM request timed out after 2 minutes')
-        })
-      );
+      expect(store.dispatch).toHaveBeenCalledWith({
+        type: 'app/createLog',
+        payload: {
+          message: 'LLM request timed out after 2 minutes',
+          type: 'error',
+          timestamp: expect.any(String)
+        }
+      });
     });
 
     it('should log error details', async () => {
@@ -141,11 +154,14 @@ describe('axiosLLM', () => {
       const [, errorFn] = instance.interceptors.response.use.mock.calls[0];
       await expect(errorFn(error)).rejects.toEqual(error);
       
-      expect(store.dispatch).toHaveBeenCalledWith(
-        expect.objectContaining({
-          payload: expect.stringContaining('LLM Error Details')
-        })
-      );
+      expect(store.dispatch).toHaveBeenCalledWith({
+        type: 'app/createLog',
+        payload: {
+          message: expect.stringContaining('LLM Error Details'),
+          type: 'error',
+          timestamp: expect.any(String)
+        }
+      });
     });
   });
 

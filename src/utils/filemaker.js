@@ -1,3 +1,7 @@
+import { store } from '../redux/store';
+import { createLog } from '../redux/slices/appSlice';
+
+
 // Type checking for FileMaker environment
 const isInFileMaker = () => {
   return typeof window !== 'undefined' && (typeof window.FileMaker !== 'undefined' || typeof window.FMGofer !== 'undefined');
@@ -17,7 +21,7 @@ if (inFileMaker) {
 }
 
 // Valid actions for FileMaker operations
-const VALID_ACTIONS = ['read', 'update', 'create', 'requestSchema', 'script'];
+const VALID_ACTIONS = ['read', 'update', 'create', 'requestSchema', 'performScript'];
 
 /**
  * Promisified version of FileMaker.PerformScript
@@ -30,21 +34,21 @@ const VALID_ACTIONS = ['read', 'update', 'create', 'requestSchema', 'script'];
 export const performFMScript = async ({
   action,
   script = "JS * Fetch Data",
-  scriptParam = {}
+  parameter = {}
 }) => {
   // Validate environment
   if (!inFileMaker) {
     throw new Error('Not in FileMaker environment');
   }
 
-  // Skip parameter preparation for ai * tools script
-  const parameter = script === 'ai * tools'
-    ? '' // No parameters for ai * tools
-    : JSON.stringify({
-        ...(action && { action }), // Only include action if provided
-        ...scriptParam,
-        version: "vLatest"
-      });
+  // // Skip parameter preparation for ai * tools script
+  // const parameter = script === 'ai * tools'
+  //   ? '' // No parameters for ai * tools
+  //   : JSON.stringify({
+  //       ...(action && { action }), // Only include action if provided
+  //       ...scriptParam,
+  //       version: "vLatest"
+  //     });
 
   // Skip action validation for direct script calls
   if (action && !VALID_ACTIONS.includes(action)) {
@@ -53,7 +57,11 @@ export const performFMScript = async ({
 
   // If FMGofer is available, use it (promise-based)
   if (FMGofer) {
-    console.log("FMGofer calling ... ", script, parameter);
+    store.dispatch(createLog({
+      message: `FMGofer calling ... :\n${JSON.stringify(script, parameter, null, 2)}`,
+      type: 'debug'
+    }));
+    console.log("FMGofer calling ... ", script, {parameter});
     return FMGofer.PerformScript(script, parameter)
       .then(result => handleFMScriptResult(result))
       .catch(error => {

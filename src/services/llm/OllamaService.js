@@ -13,7 +13,10 @@ export class OllamaService extends BaseLLMService {
     if (!config) {
       throw new Error('Invalid provider: OLLAMA');
     }
-    this.axios = createLLMInstance();
+    this.axios = createLLMInstance({
+      baseURL: config.endpoint,
+      headers: config.headers
+    });
     this.config = config;
   }
 
@@ -23,17 +26,17 @@ export class OllamaService extends BaseLLMService {
   }
 
   async formatAndSendRequest(messages, options = {}) {
-    const { model = 'llama2', temperature = 0.7 } = options;
+    const { model = 'llama3.1:70b', temperature = 0.7 } = options;
 
-    // Convert chat history to Ollama format with tool support
     const formattedMessages = messages.map(msg => ({
       role: msg.role || 'user',
       content: msg.content,
-      ...(msg.tool_calls && { tool_calls: msg.tool_calls })
+      ...(msg.tool_calls && { tool_calls: msg.tool_calls }),
+      ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id })
     }));
 
-    // Get registered tools and format them
-    const registeredTools = Object.values(this.toolsRegistry).map(tool => ({
+    // Format tools for the request
+    const tools = Object.values(this.toolsRegistry).map(tool => ({
       type: 'function',
       function: {
         name: tool.name,
@@ -49,8 +52,8 @@ export class OllamaService extends BaseLLMService {
         temperature,
         top_p: 0.9
       },
-      ...(registeredTools.length > 0 && { tools: registeredTools }),
-      tool_choice: registeredTools.length > 0 ? 'auto' : undefined
+      stream: false,
+      ...(tools.length > 0 && { tools })
     };
 
     const response = await this.axios.post(
@@ -67,12 +70,15 @@ export class OllamaService extends BaseLLMService {
       throw new Error('Invalid response from Ollama');
     }
 
-    const message = response.message;
+    // Handle tool calls if present
+    const toolCalls = response.message.tool_calls || [];
+    const content = response.message.content || '';
+
     return {
-      content: message.content,
+      content,
       role: 'assistant',
       provider: this.provider,
-      tool_calls: message.tool_calls || [],
+      tool_calls: toolCalls,
       raw: response
     };
   }

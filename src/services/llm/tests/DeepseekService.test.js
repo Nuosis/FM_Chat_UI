@@ -24,13 +24,15 @@ describe('DeepseekService', () => {
   beforeEach(() => {
     service = new DeepseekService();
     service.initialize(mockApiKey);
-    service.config = {
-      endpoint: '/deepseek',
-      headers: {
-        'Authorization': `Bearer ${mockApiKey}`
-      }
-    };
     vi.clearAllMocks();
+  });
+
+  describe('initialization', () => {
+    it('should initialize with correct endpoint from provider config', () => {
+      const testService = new DeepseekService();
+      testService.initialize(mockApiKey);
+      expect(testService.config.endpoint).toBe('https://api.deepseek.com/v1/chat/completions');
+    });
   });
 
   describe('formatAndSendRequest', () => {
@@ -60,7 +62,7 @@ describe('DeepseekService', () => {
       await service.formatAndSendRequest(mockMessages, mockOptions);
 
       expect(axiosLLM().post).toHaveBeenCalledWith(
-        '/deepseek',
+        'https://api.deepseek.com/v1/chat/completions',
         {
           model: 'deepseek-chat',
           messages: [
@@ -71,7 +73,8 @@ describe('DeepseekService', () => {
         },
         {
           headers: {
-            'Authorization': 'Bearer test-api-key'
+            'Authorization': 'Bearer test-api-key',
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -83,7 +86,7 @@ describe('DeepseekService', () => {
       await service.formatAndSendRequest(mockMessages);
       
       expect(axiosLLM().post).toHaveBeenCalledWith(
-        '/deepseek',
+        'https://api.deepseek.com/v1/chat/completions',
         expect.objectContaining({
           model: 'deepseek-chat',
           temperature: 0.7
@@ -132,7 +135,7 @@ describe('DeepseekService', () => {
       await service.formatAndSendRequest(messagesWithToolCalls);
 
       expect(axiosLLM().post).toHaveBeenCalledWith(
-        '/deepseek',
+        'https://api.deepseek.com/v1/chat/completions',
         expect.objectContaining({
           messages: expect.arrayContaining([
             expect.objectContaining({
@@ -286,6 +289,7 @@ describe('DeepseekService', () => {
         content: 'Hello! How can I help?',
         role: 'assistant',
         provider: 'DEEPSEEK',
+        tool_calls: [],
         raw: mockResponse.data
       });
     });

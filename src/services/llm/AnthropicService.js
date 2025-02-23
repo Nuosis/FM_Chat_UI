@@ -4,41 +4,42 @@ export class AnthropicService extends BaseLLMService {
   constructor(apiKey) {
     super('ANTHROPIC');
     this.apiKey = apiKey;
-    this.tools = [];
-  }
-
-  registerTool(tool) {
-    this.tools.push(tool);
   }
 
   initialize(apiKey) {
     super.initialize(apiKey);
+    if (!this.axios) {
+      throw new Error('Failed to initialize axios instance');
+    }
+
+    // Set up default headers for all requests
+    this.axios.defaults.headers.common = {
+      'accept': 'application/json',
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    };
+
+    // Ensure headers are properly set
+    if (!this.axios.defaults.headers.common['x-api-key']) {
+      throw new Error('Failed to set API key in headers');
+    }
   }
 
   async getModels() {
+    if (!this.config) {
+      throw new Error('Service not initialized');
+    }
+    
+    // Return the predefined models from the provider configuration
+    return this.config.models || [];
+  }
+
+  async sendMessage(messages, options = {}) {
     if (!this.axios || !this.config) {
       throw new Error('Service not initialized');
     }
 
-    try {
-      const response = await this.axios.post('/anthropic/models', {
-        apiKey: this.apiKey
-      });
-      
-      if (!response?.data?.data) {
-        throw new Error('API Error');
-      }
-      
-      return response.data.data.map(model => model.id);
-    } catch (error) {
-      if (error.message === 'API Error') {
-        throw error;
-      }
-      throw new Error('API Error');
-    }
-  }
-
-  async sendMessage(messages, options = {}) {
     if (!messages || messages.length === 0) {
       throw new Error('No messages provided');
     }
@@ -49,22 +50,24 @@ export class AnthropicService extends BaseLLMService {
 
     const { model, temperature = 0.7 } = options;
 
-    // Convert chat history to Anthropic format
+    // Format messages according to Anthropic's API
     const formattedMessages = messages.map(msg => ({
-      role: msg.role === 'system' ? 'assistant' : msg.role,
+      role: msg.role,
       content: msg.content
     }));
 
     const requestData = {
-      apiKey: this.apiKey,
       messages: formattedMessages,
       model,
-      temperature
+      temperature,
+      max_tokens: 1024,
+      stream: false
     };
 
     // Add tools if any are registered
-    if (this.tools && this.tools.length > 0) {
-      requestData.tools = this.tools.map(tool => ({
+    const registeredTools = Object.values(this.toolsRegistry);
+    if (registeredTools.length > 0) {
+      requestData.tools = registeredTools.map(tool => ({
         type: 'function',
         function: {
           name: tool.name,
@@ -76,7 +79,21 @@ export class AnthropicService extends BaseLLMService {
     }
 
     try {
-      const response = await this.axios.post('/anthropic/messages', requestData);
+      // Get the current headers and ensure API key is set
+      const requestHeaders = {
+        ...this.axios.defaults.headers.common,
+        'x-api-key': this.apiKey
+      };
+
+      console.log('Sending request to Anthropic:', {
+        endpoint: this.config.endpoint,
+        headers: requestHeaders,
+        requestData
+      });
+      
+      const response = await this.axios.post(this.config.endpoint, requestData, {
+        headers: requestHeaders
+      });
       
       // Ensure response has proper structure
       if (!response || !response.data) {
@@ -86,6 +103,13 @@ export class AnthropicService extends BaseLLMService {
       // Parse and format response for consistency
       return this.parseResponse(response);
     } catch (error) {
+      console.error('Anthropic request error:', {
+        error,
+        stack: error.stack,
+        config: error.config,
+        response: error.response
+      });
+      
       if (error.response) {
         // Handle Anthropic API errors
         const errorMessage = error.response.data?.error?.message ||
@@ -102,41 +126,22 @@ export class AnthropicService extends BaseLLMService {
       throw new Error('No response from Anthropic');
     }
 
-    // Handle Anthropic native format
-    if (response.data.content) {
-      const { content } = response.data;
-      if (!Array.isArray(content) || content.length === 0) {
-        throw new Error('Invalid response format from Anthropic');
-      }
-      
-      // Extract first content block
-      const firstContent = content[0];
-      
-      return {
-        content: firstContent.text || '',
-        role: 'assistant',
-        provider: 'ANTHROPIC',
-        raw: response.data
-      };
+    const { data } = response;
+    
+    // Handle Anthropic's response format
+    if (!data.content || !Array.isArray(data.content) || data.content.length === 0) {
+      throw new Error('Invalid response format from Anthropic');
     }
 
-    // Handle OpenAI-compatible format
-    if (response.data.choices) {
-      const choice = response.data.choices[0];
-      if (!choice || !choice.message) {
-        throw new Error('Invalid response format from Anthropic');
-      }
-      
-      return {
-        content: choice.message.content || '',
-        role: choice.message.role || 'assistant',
-        provider: 'ANTHROPIC',
-        tool_calls: choice.message.tool_calls || [],
-        raw: response.data
-      };
-    }
-
-    throw new Error('Invalid response format from Anthropic');
+    // Get the last content block which contains the final response
+    const lastContent = data.content[data.content.length - 1];
+    
+    return {
+      content: lastContent.text || '',
+      role: 'assistant',
+      provider: 'ANTHROPIC',
+      raw: data
+    };
   }
 }
 

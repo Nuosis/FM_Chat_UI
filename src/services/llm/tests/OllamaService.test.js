@@ -41,6 +41,13 @@ describe('OllamaService', () => {
       expect(service.axios).toBeDefined();
     });
 
+    it('should initialize with correct endpoint from provider config', () => {
+      const testService = new OllamaService();
+      testService.initialize();
+      expect(testService.config.endpoint).toBe('http://localhost:11434/api/chat');
+      expect(testService.config.modelsEndpoint).toBe('http://localhost:11434/api/tags');
+    });
+
     it('should throw error for invalid provider config', () => {
       providerEndpoints.getProviderEndpoint.mockReturnValue(null);
       expect(() => service.initialize()).toThrow('Invalid provider: OLLAMA');
@@ -198,6 +205,11 @@ describe('OllamaService', () => {
       });
 
       const mockMessages = [{ role: 'user', content: 'Hello' }];
+      const mockResponse = {
+        data: { message: { content: 'Response' } }
+      };
+      mockAxios.post.mockResolvedValue(mockResponse);
+
       await service.formatAndSendRequest(mockMessages);
 
       const requestData = mockAxios.post.mock.calls[0][1];
@@ -228,6 +240,11 @@ describe('OllamaService', () => {
 
     it('should validate request structure without tools', async () => {
       const mockMessages = [{ role: 'user', content: 'Hello' }];
+      const mockResponse = {
+        data: { message: { content: 'Response' } }
+      };
+      mockAxios.post.mockResolvedValue(mockResponse);
+
       await service.formatAndSendRequest(mockMessages);
 
       const requestData = mockAxios.post.mock.calls[0][1];
@@ -264,6 +281,11 @@ describe('OllamaService', () => {
       });
 
       const mockMessages = [{ role: 'user', content: 'Hello' }];
+      const mockResponse = {
+        data: { message: { content: 'Response' } }
+      };
+      mockAxios.post.mockResolvedValue(mockResponse);
+
       await service.formatAndSendRequest(mockMessages);
 
       const requestData = mockAxios.post.mock.calls[0][1];
@@ -312,6 +334,7 @@ describe('OllamaService', () => {
         content: 'Hello world',
         role: 'assistant',
         provider: 'OLLAMA',
+        tool_calls: [],
         raw: mockResponse
       });
     });

@@ -1,14 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BaseLLMService } from '../BaseLLMService';
+import * as providerEndpoints from '../../../../utils/providerEndpoints';
+
+// Mock dependencies
+vi.mock('../../../../utils/providerEndpoints');
 
 // Mock the store and createLog imports
-vi.mock('../../redux/store', () => ({
+vi.mock('../../../redux/store', () => ({
   store: {
     dispatch: vi.fn()
   }
 }));
 
-vi.mock('../../redux/slices/appSlice', () => ({
+vi.mock('../../../redux/slices/appSlice', () => ({
   createLog: (message, level) => ({
     type: 'LOG',
     payload: { message, level }
@@ -22,8 +26,8 @@ class TestLLMService extends BaseLLMService {
   }
 
   initialize(apiKey = '') {
+    super.initialize(apiKey);
     this.initialized = true;
-    this.config = { models: ['model1', 'model2'] };
   }
 
   async getModels() {
@@ -62,8 +66,35 @@ describe('BaseLLMService', () => {
   let service;
 
   beforeEach(() => {
-    service = new TestLLMService();
     vi.clearAllMocks();
+    providerEndpoints.getProviderEndpoint.mockReturnValue({
+      endpoint: 'https://test.api/v1/chat',
+      modelsEndpoint: 'https://test.api/v1/models',
+      headers: {
+        'Authorization': 'Bearer test-key'
+      },
+      models: ['model1', 'model2']
+    });
+    service = new TestLLMService();
+  });
+
+  describe('initialization', () => {
+    it('should initialize with correct endpoint configuration', () => {
+      service.initialize('test-key');
+      expect(providerEndpoints.getProviderEndpoint).toHaveBeenCalledWith('test', 'test-key');
+      expect(service.config.endpoint).toBe('https://test.api/v1/chat');
+      expect(service.config.modelsEndpoint).toBe('https://test.api/v1/models');
+    });
+
+    it('should throw error for invalid provider config', () => {
+      providerEndpoints.getProviderEndpoint.mockReturnValue(null);
+      expect(() => service.initialize('test-key')).toThrow('Invalid provider: test');
+    });
+
+    it('should properly set headers with API key', () => {
+      service.initialize('test-key');
+      expect(service.config.headers['Authorization']).toBe('Bearer test-key');
+    });
   });
 
   it('should initialize with empty tools', () => {

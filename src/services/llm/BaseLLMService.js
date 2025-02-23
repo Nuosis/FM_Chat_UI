@@ -16,7 +16,9 @@ export class BaseLLMService {
     if (!config) {
       throw new Error(`Invalid provider: ${this.provider}`);
     }
-    this.axios = createLLMInstance();
+    this.axios = createLLMInstance({
+      baseURL: config.endpoint
+    });
     this.config = config;
   }
 
@@ -168,9 +170,17 @@ export class BaseLLMService {
    * @returns {Array<{name: string, description: string}>}
    */
   getTools() {
-    return Object.keys(this.toolsRegistry).map(name => ({
-      name,
-      description: this.toolsRegistry[name].description || ''
-    }));
+    return Object.keys(this.toolsRegistry).map(name => {
+      const tool = this.toolsRegistry[name];
+      return {
+        name,
+        description: tool.description || '',
+        parameters: {
+          type: 'object',
+          properties: tool.parameters?.properties || {},
+          required: tool.parameters?.required || []
+        }
+      };
+    });
   }
 }

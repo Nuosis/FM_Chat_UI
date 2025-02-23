@@ -12,7 +12,7 @@ export default {
       operation: {
         type: 'string',
         enum: ['add', 'subtract', 'multiply', 'divide'],
-        description: `The math operation to perform. Must be one of: 
+        description: `The math operation to perform. Must be one of:
 - "add" (sum numbers)
 - "subtract" (subtract numbers in order)
 - "multiply" (multiply numbers)

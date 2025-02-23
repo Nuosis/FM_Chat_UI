@@ -1,4 +1,5 @@
 import { handleFMScriptResult, inFileMaker } from '../../../utils/filemaker';
+import { performFMScript } from '../../../utils/filemaker';
 
 // Global variable and function for FileMaker to call with the result
 window.toolRegistrationResult = null;
@@ -21,17 +22,17 @@ window.registerToolsCallback = (result) => {
 };
 
 export class FileMakerToolAdapter {
-  async executeTool(toolName, parameters) {
+  async executeTool(toolName, parameter) {
     if (!inFileMaker) {
       throw new Error('FileMaker tools are only available in FileMaker environment');
     }
 
     try {
       const response = await performFMScript({
-        action: 'performScript',
-        script: `ai * tools * ${toolName}`,
-        scriptParam: {
-          ...parameters
+        parameter: {
+          ...parameter,
+          action: 'performScript',
+          script: `ai * tools * ${toolName}`,
         }
       });
       return handleFMScriptResult(response);
