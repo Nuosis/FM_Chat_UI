@@ -172,6 +172,13 @@ describe('AnthropicService', () => {
       });
 
       const mockMessages = [{ role: 'user', content: 'Hello' }];
+      const mockResponse = {
+        data: {
+          content: [{ text: 'Hello! How can I help you today?' }]
+        }
+      };
+      testService.axios.post.mockResolvedValue(mockResponse);
+
       await testService.sendMessage(mockMessages, mockOptions);
 
       const requestData = testService.axios.post.mock.calls[0][1];

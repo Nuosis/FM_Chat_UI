@@ -5,7 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ProgressText from './ProgressText';
-import { createLog, LogType } from '../redux/slices/appSlice';
+import { createLog, clearLogs, LogType } from '../redux/slices/appSlice';
 import llmServiceFactory from '../services/llm';
 import {
   Box,
@@ -22,7 +22,7 @@ import {
   Typography,
   Alert
 } from '@mui/material';
-import { Send as SendIcon, Settings as SettingsIcon } from '@mui/icons-material';
+import { Send as SendIcon, Settings as SettingsIcon, Delete as DeleteIcon } from '@mui/icons-material';
 
 const SlideTransition = (props) => {
   return <Slide {...props} direction="left" />;
@@ -35,7 +35,14 @@ const LLMChat = () => {
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const handleClearChat = () => {
+    setMessages([]);
+    dispatch(clearLogs());
+    setClearDialogOpen(false);
+  };
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -312,7 +319,7 @@ const LLMChat = () => {
               }
             }}
           />
-          <IconButton 
+          <IconButton
             onClick={handleSubmit}
             disabled={!input.trim()}
             color="primary"
@@ -325,10 +332,56 @@ const LLMChat = () => {
           >
             <SendIcon />
           </IconButton>
+          <IconButton
+            onClick={() => setClearDialogOpen(true)}
+            color="error"
+            disabled={messages.length === 0}
+            sx={{
+              bgcolor: 'background.paper',
+              '&:hover': {
+                bgcolor: 'action.hover'
+              }
+            }}
+          >
+            <DeleteIcon />
+          </IconButton>
         </Box>
       </Box>
 
-      <Dialog 
+      <Dialog
+        open={clearDialogOpen}
+        onClose={() => setClearDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: 'background.paper',
+            color: 'text.primary'
+          }
+        }}
+      >
+        <DialogTitle>Clear Chat</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to clear all chat messages? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setClearDialogOpen(false)}
+            sx={{ color: 'text.primary' }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleClearChat}
+            color="error"
+            variant="contained"
+          >
+            Clear
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
         open={settingsOpen} 
         onClose={() => setSettingsOpen(false)}
         PaperProps={{
