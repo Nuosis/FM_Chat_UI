@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { store } from '../redux/store';
 import { Snackbar, Slide } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -37,6 +38,9 @@ const LLMChat = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const state = store.getState();
+  const schema = state.app.schema;
 
   const handleClearChat = () => {
     setMessages([]);
@@ -97,7 +101,7 @@ const LLMChat = () => {
         messages: [
           {
             role: 'system',
-            content: `You are a helpful AI assistant. When asked about available tools, you must ONLY list the locally registered tools using the getTools() method. Do not list any other tools. Current system instructions: ${llmSettings.systemInstructions}`
+            content: `You are a helpful AI assistant with deep knowledge about FileMaker. Here is the schema of the FileMaker Database ${JSON.stringify(schema)}. ${llmSettings.systemInstructions}`
           },
           ...messages,
           newMessage

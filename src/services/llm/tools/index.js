@@ -1,7 +1,7 @@
 import exampleTool from './exampleTool';
 import sqlGeneratorTool from './SQLGeneratorTool';
-import schemaFromStateForSQLTool from './SchemaFromStateForSQLTool';
-import schemaFromStateForDapiTool from './SchemaFromStateForDapiTool';
+import getFileMakerSchemaTool from './GetFileMakerSchemaTool';
+import getStructuredDataTool from './GetStructuredDataTool';
 import { FileMakerToolAdapter } from './FileMakerToolAdapter';
 import { inFileMaker } from '../../../utils/filemaker';
 
@@ -10,8 +10,8 @@ const fileMakerAdapter = new FileMakerToolAdapter();
 const localTools = {
   exampleTool,
   sqlGeneratorTool,
-  schemaFromStateForSQLTool,
-  schemaFromStateForDapiTool
+  // getStructuredDataTool,
+  // getFileMakerSchemaTool
 };
 
 const validateTool = (tool) => {
@@ -51,7 +51,12 @@ export const registerTools = async (service) => {
   let registeredCount = 0;
   
   // Register local tools
-  const tools = [exampleTool, sqlGeneratorTool, schemaFromStateForSQLTool, schemaFromStateForDapiTool];
+  const tools = [
+    exampleTool, 
+    sqlGeneratorTool,
+    // getStructuredDataTool,
+    // getFileMakerSchemaTool
+  ];
   console.log('Attempting to register local tools:', tools.map(t => t.name));
   const validTools = tools.filter(validateTool);
   console.log('Valid local tools:', validTools.map(t => t.name));

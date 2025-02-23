@@ -15,56 +15,9 @@ export default {
       description: {
         type: 'string',
         description: 'Natural language description of desired query (e.g., "find every customer with an active Worksheet")'
-      },
-      schema: {
-        type: 'object',
-        description: 'FileMaker database schema',
-        properties: {
-          tables: {
-            type: 'array',
-            description: 'Array of table definitions',
-            items: {
-              type: 'object',
-              properties: {
-                name: {
-                  type: 'string',
-                  description: 'Table name (e.g., "REST_Customers")'
-                },
-                fields: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      name: { type: 'string' },
-                      type: { type: 'string' },
-                      description: { type: 'string' }
-                    },
-                    required: ['name', 'type']
-                  }
-                }
-              },
-              required: ['name', 'fields']
-            }
-          },
-          relationships: {
-            type: 'array',
-            description: 'Table relationships for JOINs',
-            items: {
-              type: 'object',
-              properties: {
-                fromTable: { type: 'string' },
-                toTable: { type: 'string' },
-                fromField: { type: 'string' },
-                toField: { type: 'string' }
-              },
-              required: ['fromTable', 'toTable', 'fromField', 'toField']
-            }
-          }
-        },
-        required: ['tables']
       }
     },
-    required: ['description', 'schema']
+    required: ['description']
   },
   execute: async (input) => {
     try {
@@ -80,14 +33,6 @@ export default {
           type: LogType.ERROR
         }));
         throw new Error('Missing required parameter: description');
-      }
-
-      if (!input.schema || !input.schema.tables) {
-        store.dispatch(createLog({
-          message: 'Missing required schema information',
-          type: LogType.ERROR
-        }));
-        throw new Error('Missing required schema information');
       }
 
       const { description, schema } = input;
@@ -197,11 +142,6 @@ ${schema.tables.map(table => `
 Table: ${table.name}
 Fields: ${table.fields.map(f => `${f.name} (${f.type})${f.description ? ` - ${f.description}` : ''}`).join(', ')}
 `).join('\n')}
-
-${schema.relationships ? `
-Available Relationships:
-${schema.relationships.map(r => `${r.fromTable}.${r.fromField} -> ${r.toTable}.${r.toField}`).join('\n')}
-` : ''}
 
 Example of correct format:
 "SELECT \"Name\", \"Company\" FROM \"REST_Customers\" WHERE \"Client_Type\" = 'customer' OR \"Client_Type\" = 'Customer'"
