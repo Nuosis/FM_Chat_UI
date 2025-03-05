@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { ThemeProvider, createTheme, CssBaseline, Box, useMediaQuery } from '@mui/material';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store } from './redux/store';
-import { performFMScript, handleFMScriptResult, inFileMaker } from './utils/filemaker';
 import { setSchema, createLog, LogType } from './redux/slices/appSlice';
 import { setInitialized, setInitError, setRegisteredTools } from './redux/slices/llmSlice';
 import Header from './components/Header';
@@ -25,15 +24,14 @@ const AppContent = () => {
       try {
         console.log('Starting initialization with settings:', JSON.stringify(llmSettings, null, 2));
         
-        // Only fetch schema if we're in FileMaker
-        if (inFileMaker) {
-          dispatch(createLog('Fetching schema...', LogType.INFO));
-          const request = {parameter: {action: 'requestSchema'}}
-          const result = await performFMScript(request);
-          const schema = handleFMScriptResult(result);
-          dispatch(setSchema(schema));
-          dispatch(createLog('Schema loaded successfully', LogType.SUCCESS));
-        } else {
+        // Get schema summary regardless of FileMaker status
+        dispatch(createLog('Getting schema summary...', LogType.INFO));
+        const { getSchemaSummary } = await import('./schema');
+        const schemaSummary = getSchemaSummary();
+        dispatch(setSchema(schemaSummary));
+        dispatch(createLog('Schema summary loaded successfully', LogType.SUCCESS));
+
+        if (!inFileMaker) {
           dispatch(createLog('Running in standalone mode (no FileMaker)', LogType.INFO));
         }
 

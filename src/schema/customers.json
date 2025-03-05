@@ -1,6 +1,14 @@
 [
     {
       "REST_Customers": {
+        "ai_note": [
+          "f_cleanerNewAccounts is used to indicate if the customer is a new account for the cleaner",
+          "GSTno is the GST number of the customer",
+          "_qbVenderID is the QuickBooks vendor ID",
+          "_qbVenderName is the QuickBooks vendor name",
+          "_qbCustID is the QuickBooks customer ID",
+          "Last_Name_Initial is the last name initial of the customer"
+        ],
         "primaryKey": "__ID",
         "fields": [
           "first_name",
@@ -12,10 +20,8 @@
           "_qbCustID",
           "Last_Name_Initial",
           "f_cleanerNewAccounts",
-          "_qbCustSyncID",
           "GSTno",
           "_qbVenderID",
-          "_qbVenderSyncID",
           "_qbVenderName"
         ],
         "displayFields": [
@@ -141,7 +147,6 @@
           "dateDELETED",
           "dateMODIFIER",
           "makrForDeletion",
-          "f_activeCust",
           "e164number",
           "f_textConsent",
           "deviceModifiedID"
@@ -177,15 +182,12 @@
           "dateCREATED",
           "dateCREATOR",
           "dateDELETED",
-          "dateMODIFIER",
-          "f_flag",
-          "f_activeCust",
-          "deviceModifiedID"
+          "dateMODIFIER"
         ],
         "displayFields": [
           "Name_of_Relation",
-          "Number",
-          "Extension"
+          "Role",
+          "Subrole"
         ],
         "childTables": [
             {
@@ -198,86 +200,6 @@
             "table": "REST_Customers",
             "foreignKey": "_custID"
           },
-          {
-            "table": "REST_Organization",
-            "foreignKey": "_orgID"
-          }
-        ]
-      }
-    },
-    {
-      "REST_worksheetCustomers": {
-        "primaryKey": "__ID",
-        "fields": [
-          "first_name",
-          "last_name",
-          "Name",
-          "Company",
-          "Billy_Entity_Code_for_Customer",
-          "Billing_Entity_Name",
-          "_include",
-          "DOB",
-          "Gender",
-          "Age",
-          "Client_Type",
-          "Is_Company",
-          "_billingentityID",
-          "Billing_Entity_Contact_Name",
-          "Job_Title",
-          "Prefix",
-          "_qbCustID",
-          "Sufix",
-          "Cleaner_Name",
-          "f_Problems",
-          "Note",
-          "Subcontract FSA Value",
-          "Subcontract SCSA Rate",
-          "Cleaner_Rate",
-          "Site_Type",
-          "Staff Role",
-          "Start Date",
-          "Cleaner_Crew",
-          "f_cleanerProblems",
-          "FilterGroup",
-          "_courtesyCall",
-          "dateCREATED",
-          "dateCREATOR",
-          "dateDELETED",
-          "dateMODIFIER",
-          "Last_Name_Initial",
-          "i_Flag",
-          "f_EmailMissing",
-          "action",
-          "actionTS",
-          "actionInfo",
-          "sjiKeyCode",
-          "WebPassword",
-          "f_locked",
-          "_qualityControlSchedule",
-          "_qualityControlScheduleLock",
-          "_courtseyCallSchedule",
-          "_courtseyCallScheduleLock",
-          "courtseyCallFrequencyDisplayed",
-          "inspectionFrequencyDisplayed",
-          "gstExemption",
-          "cortCallsPerYear",
-          "f_cleanerNewAccounts",
-          "_qbCustSyncID",
-          "shortCode",
-          "deviceModifiedID",
-          "GSTno",
-          "_qbVenderID",
-          "_qbVenderSyncID",
-          "dateMODIFIED host",
-          "_qbVenderName"
-        ],
-        "displayFields": [
-          "Name",
-          "Company",
-          "Client_Type"
-        ],
-        "childTables": [],
-        "parentTables": [
           {
             "table": "REST_Organization",
             "foreignKey": "_orgID"
@@ -326,10 +248,30 @@
           "amountPayment",
           "amountSourceDeductions",
           "amountWCB",
+          "amountAnnualReport",
+          "amountAdminFee",
+          "amountYearEnd",
+          "amountOther",
+          "amountOtherReason",
+          "amountCorpTax",
+          "amountPayment",
+          "amountSourceDeductions",
           "BCregBusinessNumber",
+          "insuranceRenewalDate",
+          "f_adminFee",
+          "f_insurance",
+          "f_businessLicense",
+          "f_yearEnd",
+          "f_annualReport",
+          "f_GSTwithholdings",
+          "f_CorpTaxWithholdings",
+          "f_WCBwithholdings",
           "f_payInFull",
           "f_paymentOnAccount",
           "f_sourceDeductions",
+          "f_WCBpercent",
+          "f_other",
+          "f_otherGST",
           "f_subcontractorProcess"
         ],
         "childTables": [],
@@ -369,6 +311,7 @@
           "deviceModifiedID"
         ],
         "displayFields": [
+          "addressTYPE",
           "Address",
           "City",
           "Postal_Code",
@@ -393,9 +336,9 @@
     },
     {
       "REST_WorksheetInfo": {
+        "ai_note": ["use ~order to sort, but do not display"],
         "primaryKey": "__ID",
         "fields": [
-          "_createdTS",
           "Time",
           "Heading",
           "Frequency",
@@ -403,30 +346,20 @@
           "Rate",
           "Frequency_Specified",
           "Area",
-          "_cleanerID",
           "Multiplier",
           "Date",
           "Site",
-          "_worksheetID",
           "~order",
           "f_oneTime",
           "dateCREATED",
           "dateCREATOR",
           "dateDELETED",
           "dateMODIFIER",
-          "t_MonAmount",
-          "t_RATE",
-          "t_SubAmount",
-          "t_TIME",
           "Comments 1",
           "Comments 2",
           "Comments 3",
           "Comments 4",
           "display Calculation",
-          "f_MonAmount",
-          "f_RATE",
-          "f_SubAmount",
-          "f_TIME",
           "Frequency Specified Horozontal",
           "Frequency per year",
           "Monthly Amount",
@@ -440,32 +373,27 @@
           "Yearly Time",
           "Yearly Total",
           "Monthly Time",
-          "f_orphaned",
-          "orphans",
-          "duplicate",
           "providerRate",
-          "f_activeWS",
           "Monthly Provider Amount Labour",
-          "~baseTime",
-          "~baseUnit",
-          "~baseUnitN",
-          "~levelofDetail",
-          "~levelofSoiled",
           "AreaSize",
           "Cost Per Visit",
           "Cost Per Visit Provider",
           "levelofDetail",
           "levelofSoiled",
-          "sqrFtRate",
-          "deviceModifiedID",
-          "f_sync"
+          "sqrFtRate"
         ],
         "displayFields": [
+          "~order",
           "Heading",
-          "Frequency",
-          "Rate",
+          "Frequency Specified Horozontal",
+          "Date",
           "Area",
-          "Date"
+          "Multiplier",
+          "Rate",
+          "Comments 1",
+          "Comments 2",
+          "Comments 3",
+          "Comments 4"
         ],
         "childTables": [],
         "parentTables": [
@@ -476,32 +404,32 @@
           {
             "table": "REST_Organization",
             "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Worksheet",
+            "foreignKey": "_worksheetID"
           }
         ]
       }
     },
     {
       "REST_WorkOrders": {
+        "ai_note": [
+          "Select indicates the workorder is active",
+          "SCSA Value is the amount we pay the cleaner"
+        ],
         "primaryKey": "__ID",
         "fields": [
           "WorkOrder Time Stamp",
           "WorkOrder Name",
           "Customer Name",
-          "Delete",
           "Select",
-          "Saved",
           "Start Date",
-          "FSA Value",
           "SCSA Value",
           "Current Rate",
-          "Rate Change Date",
-          "FSA Rate",
-          "_cleanerID",
-          "SCSA Rate",
           "Discount",
           "Cleaner",
           "_siteType",
-          "Increase",
           "dateCREATED",
           "dateCREATOR",
           "dateDELETED",
@@ -511,35 +439,43 @@
           "contract AMOUNT LABOUR",
           "contract AMOUNT MATERIALS",
           "contract TIME",
-          "f_Childless",
-          "f_Cleanerless",
-          "_worksheetID",
           "WorkOrderCode",
-          "_providerID",
           "Provider",
           "Provider Amount",
-          "Provider dph",
-          "Provider Rate",
-          "deviceModifiedID",
-          "dateCOMPLETED",
-          "f_sync"
+          "dateCOMPLETED"
         ],
         "displayFields": [
           "WorkOrder Name",
+          "WorkOrderCode",
           "Customer Name",
+          "Provider",
+          "Cleaner",
           "Start Date",
           "Current Rate",
-          "Cleaner"
+          "Discount",
+          "contract TIME"
         ],
         "childTables": [],
         "parentTables": [
+          {
+            "table": "REST_Worksheet",
+            "foreignKey": "_worksheetID"
+          },
           {
             "table": "REST_Customers",
             "foreignKey": "_custID"
           },
           {
+            "table": "REST_Customers",
+            "foreignKey": "_cleanerID"
+          },
+          {
             "table": "REST_Organization",
             "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Organization",
+            "foreignKey": "_providerID"
           }
         ]
       }
@@ -552,7 +488,6 @@
           "dateCREATOR",
           "dateDELETED",
           "dateMODIFIER",
-          "_cleanerID",
           "InvoiceNo",
           "month",
           "year",
@@ -560,7 +495,6 @@
           "posted",
           "amountGST",
           "customer",
-          "deviceModifiedID",
           "type"
         ],
         "displayFields": [
@@ -577,6 +511,10 @@
             "foreignKey": "_custID"
           },
           {
+            "table": "REST_Customers",
+            "foreignKey": "_cleanerID"
+          },
+          {
             "table": "REST_Organization",
             "foreignKey": "_orgID"
           }
@@ -585,13 +523,17 @@
     },
     {
       "REST_Invoice Records": {
+        "ai_note": [
+          "payAmount is how much the cleaner is paid",
+          "billAmount is hoow much the custoemr paid",
+          "providerAmount is how much the provider is paid",
+          "wsName is the name of the worksheet"
+        ],
         "primaryKey": "__ID",
         "fields": [
           "dateCREATED",
           "dateCREATOR",
-          "x_dateDELETED",
           "dateMODIFIER",
-          "_cleanerID",
           "Date",
           "cleanerName",
           "customerName",
@@ -600,29 +542,18 @@
           "Type",
           "billAmount",
           "wsName",
-          "x_dateBilled",
-          "X_dateInvoiced",
           "providerAmount",
-          "x_dateProviderInvoiced",
-          "dateMonth",
-          "dateYear",
-          "x~posted",
-          "x~postedProvider",
           "providerName",
-          "_providerID",
-          "x~postedCleaner",
-          "x~gstPaid",
-          "x~pstPaid",
-          "dateDay",
-          "deviceModifiedID",
-          "adjustmentCategory",
-          "RESTfmDeleteReason"
+          "adjustmentCategory"
         ],
         "displayFields": [
           "Date",
           "customerName",
-          "payAmount",
+          "providerName",
+          "cleanerName",
           "billAmount",
+          "providerAmount",
+          "payAmount",
           "Type"
         ],
         "childTables": [],
@@ -632,8 +563,16 @@
             "foreignKey": "_custID"
           },
           {
+            "table": "REST_Customers",
+            "foreignKey": "_cleanerID"
+          },
+          {
             "table": "REST_Organization",
             "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Organization",
+            "foreignKey": "_providerID"
           },
           {
             "table": "REST_Worksheet",
@@ -652,23 +591,30 @@
           "dateMODIFIER",
           "dateMODIFIED session",
           "dateMODIFIED utc",
-          "f_read",
-          "_senderID",
-          "_messageID",
-          "_originalMessageID",
-          "deviceModifiedID"
+          "f_read"
+          
         ],
         "displayFields": [
           "dateCREATED",
-          "f_read",
-          "_senderID",
-          "_messageID"
+          "f_read"
         ],
         "childTables": [],
         "parentTables": [
           {
             "table": "REST_Customers",
             "foreignKey": "_custID"
+          },
+          {
+            "table": "REST_Customers",
+            "foreignKey": "_senderID"
+          },
+          {
+            "table": "REST_Message",
+            "foreignKey": "_messageID"
+          },
+          {
+            "table": "REST_Message",
+            "foreignKey": "_originalMessageID"
           },
           {
             "table": "REST_Organization",
@@ -765,27 +711,31 @@
           "dateCREATOR",
           "dateDELETED",
           "dateMODIFIER",
-          "_cleanerID",
           "worksheet",
           "dateCOMPLETED",
           "dateCreatedYEAR",
           "dateCreatedMonth",
           "_qcProcessed",
-          "_messageID",
-          "_mj_messageID",
-          "deviceModifiedID"
+          "_mj_messageID"
         ],
         "displayFields": [
           "Issue",
           "dateCREATED",
+          "dateCOMPLETED",
           "stage",
-          "contact person"
+          "contact person",
+          "contact email",
+          "contact phone"
         ],
         "childTables": [],
         "parentTables": [
           {
             "table": "REST_Customers",
             "foreignKey": "_custID"
+          },
+          {
+            "table": "REST_Customers",
+            "foreignKey": "_cleanerID"
           },
           {
             "table": "REST_Organization",
@@ -806,14 +756,12 @@
           "dateCREATOR",
           "dateDELETED",
           "dateMODIFIER",
-          "_processID",
           "endUnitAmount",
           "endUnit",
           "endProcessDesignation",
           "dateENDED",
           "dateSTARTED",
           "processNote",
-          "_processRecordID",
           "processName",
           "processStep",
           "endProcess",
@@ -825,7 +773,16 @@
           "processStep",
           "endProcess"
         ],
-        "childTables": [],
+        "childTables": [
+          {
+            "table": "REST_Process",
+            "foreignKey": "_processID"
+          },
+          {
+            "table": "REST_ProcessRecord",
+            "foreignKey": "_processRecordID"
+          }
+        ],
         "parentTables": [
           {
             "table": "REST_Customers",
@@ -840,26 +797,21 @@
     },
     {
       "REST_Worksheet": {
+        "ai_note": ["Select indicates active"],
         "primaryKey": "__ID",
         "fields": [
           "Worksheet Time Stamp",
           "Worksheet Name",
           "Customer Name",
-          "Delete",
           "Select",
-          "Saved",
           "Start Date",
           "FSA Value",
           "SCSA Value",
           "Current Rate",
-          "Rate Change Date",
           "FSA Rate",
           "Discount",
           "Cleaner",
-          "excludedMonths",
-          "Outcome",
           "_siteType",
-          "Increase",
           "datecleanerMODIFIED",
           "dateIncreaseMODIFIED",
           "f_includeIncrease",
@@ -868,13 +820,9 @@
           "dateCREATOR",
           "dateDELETED",
           "dateMODIFIER",
-          "f_childless",
-          "_cleanerID",
           "saved AMOUNT LABOUR",
           "saved AMOUNT MATERIALS",
           "saved AMOUNT TOTAL",
-          "saved TIME",
-          "saved TPC",
           "f_locked",
           "f_reliefCleaner",
           "Relief Cleaner",
@@ -890,17 +838,24 @@
           "providerAssignedDate",
           "suspended",
           "suspendedDate",
-          "suspendedDateEnd",
-          "f_activeCustFlag",
-          "deviceModifiedID",
-          "f_sync"
+          "suspendedDateEnd"
         ],
         "displayFields": [
           "Worksheet Name",
           "Customer Name",
           "Start Date",
-          "Current Rate",
-          "Cleaner"
+          "End Date",
+          "saved AMOUNT TOTAL",
+          "provider",
+          "providerAssignedDate",
+          "saved AMOUNT TOTAL PROVIDER",
+          "Cleaner",
+          "Cleaner Assigned Date",
+          "SCSA Value",
+          "f_reliefCleaner",
+          "Relief Cleaner",
+          "reliefStartDate",
+          "reliefEndDate"
         ],
         "childTables": [],
         "parentTables": [
@@ -932,6 +887,7 @@
         ],
         "displayFields": [
           "DOW",
+          "city",
           "f_residential",
           "f_condo",
           "f_commercial"
@@ -948,5 +904,387 @@
           }
         ]
       }
+    },
+    {
+      "REST_Organization": {
+        "primaryKey": "__ID",
+        "fields": [
+          "User Name",
+          "Website",
+          "Slogan",
+          "Prov",
+          "Postal Code",
+          "Main Phone",
+          "Logo",
+          "Fax",
+          "Email",
+          "Corporate Name",
+          "City",
+          "Address",
+          "License Key",
+          "Passcode",
+          "f_SortByName",
+          "GST No",
+          "GST Rate",
+          "PST Rate",
+          "f_Num",
+          "download Link",
+          "base rate",
+          "validatedDate",
+          "validatedCHECK",
+          "serverResponse",
+          "Sync Interval",
+          "Logo b64",
+          "Logo fileName",
+          "version",
+          "Log",
+          "Log b64",
+          "Log fileName",
+          "f_new",
+          "Complaint Cell Number",
+          "split rate",
+          "savingsAnnualReport",
+          "savingsBusinessLicense",
+          "savingsInsurance",
+          "savingsYearEnd",
+          "adminFee",
+          "f_isProvider",
+          "f_serverEmail",
+          "f_serverText",
+          "_qbStateID",
+          "qb_accessCode",
+          "qb_accessToken",
+          "qb_accessTokenSecret",
+          "qb_ClientID",
+          "qb_ClientSecret",
+          "qb_refreshToken",
+          "qb_refreshTokenDate",
+          "qb_relmID",
+          "e164number",
+          "emailBookKeeping",
+          "_qbCustSyncID",
+          "_qbCustID",
+          "mj_apiKey",
+          "mj_apiToken"
+        ],
+        "displayFields": [
+          "User Name",
+          "Website",
+          "Slogan",
+          "Main Phone",
+          "Email",
+          "Corporate Name",
+          "City",
+          "Address",
+          "GST Rate",
+          "PST Rate"
+        ],
+        "childTables": [
+          {
+            "table": "REST_WorksheetInfo",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Organization Devices",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_OrganizationLocations",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_OrganizationTextPREFERENCES",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_OrganizationTexts",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Customers",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Inspector",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Worksheet",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_To Do List",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Address",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Emails",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Phones",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Related",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_InspectorTasksSelected",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_InspectorInfo",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_WorksheetMaterials",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_WorksheetTasksSelected",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Docs DOWNLOAD",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_WorkOrders",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_WorkOrdersRecords",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Dropdown Lists",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Signatures",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Materials List",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Roles",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_WorkSheetHeading",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_WorkSheetHeadingTasks",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Sessions",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_SessionData",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_SessionsIDS",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Complaint",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Complaint Records",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Forms Generator",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Forms Generator Data",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Equipment",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Equipment Loaning",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Equipment Servicing",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Equipment Pictures",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Form",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Form Data",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Error",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_taskCompletion",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Process",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Process Record",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_customerProcess Record",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Strikes",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_History",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Message",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_messageMailBox",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_worksheetAdjustment",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Activity",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Activity Records",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Invoice",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Invoice Records",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Tags",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_cleanerPerformance",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_cleanerPerformanceSUM",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_WorkOrdersProcess",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Increases",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_companyPerformance",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_CustomersPayrollSettings",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Notes",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_quoteBoard",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_worksheetBoard",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_cleanerReport",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_cleanerReportGoals",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_TextPREFERENCES",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Accounts Payable",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Accounts Payable Recurrent Amounts",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Accounts Receivable",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_Cash",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_WorksheetInfoTasks",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_ActivityNotes",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_invoiceRecordsJOINqbLines",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_qbSetting",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_qbOrgSettings",
+            "foreignKey": "_orgID"
+          },
+          {
+            "table": "REST_cust_CustomersPayrollSettings",
+            "foreignKey": "_orgID"
+          }
+        ]
+      }
     }
-  ]
+]

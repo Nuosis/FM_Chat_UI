@@ -101,7 +101,7 @@ const LLMChat = () => {
         messages: [
           {
             role: 'system',
-            content: `You are a helpful AI assistant with deep knowledge about FileMaker. Here is the schema of the FileMaker Database ${JSON.stringify(schema)}. ${llmSettings.systemInstructions}`
+            content: `You are a helpful AI assistant with deep knowledge about FileMaker. ${JSON.stringify(schema)}. ${llmSettings.systemInstructions}`
           },
           ...messages,
           newMessage

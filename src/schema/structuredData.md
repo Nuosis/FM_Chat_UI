@@ -18,6 +18,11 @@ You are a database schema parser. Your task is to analyze a provided SQL schema 
    - List all **non-primary, non-foreign** fields under `"fields"`.  
    - Do not include system fields (like `RESTfmDeleteFlag` or `dateMODIFIED` fields).
 
+4. **Extract DisplayField Information**  
+   - List all fields in `"displaFields"` that appear important to display in a form.  
+   - Do not include system fields (like `RESTfmDeleteFlag` or `dateMODIFIED` fields).
+   - fields that start with `"f_"` are boolean fields and maybe relevant for display but not always.
+
 ---
 
 ### **Output Rules:**
@@ -32,7 +37,8 @@ You are a database schema parser. Your task is to analyze a provided SQL schema 
 {
   "REST_Customers": {
     "primaryKey": "__ID",
-    "fields": ["first_name", "last_name", "Name", "Company"],
+    "fields": ["first_name", "last_name", "Name", "Company", "internalRef"],
+    "displayFields": ["first_name", "last_name", "Name", "Company"],
     "childTables": [
       {
         "table": "REST_Billing",
@@ -59,6 +65,7 @@ You are a database schema parser. Your task is to analyze a provided SQL schema 
     "REST_Customers": {
       "primaryKey": "__ID",
       "fields": ["Field1", "Field2", "Field3", ...],
+      "displayFields": ["Field1", "Field5"],
       "childTables": [
         {
           "table": "REST_Emails",
@@ -75,8 +82,9 @@ You are a database schema parser. Your task is to analyze a provided SQL schema 
   },
   {
     "REST_Emails": {
-      "primaryKey": "__EmailID",
+      "primaryKey": "__ID",
       "fields": ["EmailAddress", "EmailType"],
+      "displayFields": ["EmailAddress", "EmailType"],
       "childTables": [],
       "parentTables": [
         {

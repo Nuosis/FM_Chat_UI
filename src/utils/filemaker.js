@@ -41,15 +41,6 @@ export const performFMScript = async ({
     throw new Error('Not in FileMaker environment');
   }
 
-  // // Skip parameter preparation for ai * tools script
-  // const parameter = script === 'ai * tools'
-  //   ? '' // No parameters for ai * tools
-  //   : JSON.stringify({
-  //       ...(action && { action }), // Only include action if provided
-  //       ...scriptParam,
-  //       version: "vLatest"
-  //     });
-
   // Skip action validation for direct script calls
   if (action && !VALID_ACTIONS.includes(action)) {
     throw new Error(`Invalid action: ${action}. Must be one of: ${VALID_ACTIONS.join(', ')}`);
