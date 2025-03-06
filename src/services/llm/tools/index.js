@@ -2,6 +2,7 @@ import exampleTool from './exampleTool';
 import sqlGeneratorTool from './SQLGeneratorTool';
 import getFileMakerSchemaTool from './GetFileMakerSchemaTool';
 import getStructuredDataTool from './GetStructuredDataTool';
+import agentExecutorTool from './AgentExecutorTool';
 import { FileMakerToolAdapter } from './FileMakerToolAdapter';
 import { inFileMaker } from '../../../utils/filemaker';
 
@@ -10,6 +11,7 @@ const fileMakerAdapter = new FileMakerToolAdapter();
 const localTools = {
   exampleTool,
   sqlGeneratorTool,
+  agentExecutorTool,
   // getStructuredDataTool,
   // getFileMakerSchemaTool
 };
@@ -52,8 +54,9 @@ export const registerTools = async (service) => {
   
   // Register local tools
   const tools = [
-    exampleTool, 
+    exampleTool,
     sqlGeneratorTool,
+    agentExecutorTool,
     // getStructuredDataTool,
     // getFileMakerSchemaTool
   ];

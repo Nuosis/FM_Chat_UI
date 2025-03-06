@@ -144,7 +144,11 @@ export class BaseLLMService {
     
     try {
       const args = JSON.parse(toolCall.function.arguments);
-      return await tool.execute(args);
+      // Create context object to pass to tool
+      const context = {
+        llmService: this
+      };
+      return await tool.execute(args, context);
     } catch (error) {
       throw new Error(`Error executing tool ${toolCall.function.name}: ${error.message}`);
     }

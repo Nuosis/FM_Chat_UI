@@ -15,9 +15,13 @@ export default {
       description: {
         type: 'string',
         description: 'Natural language description of desired query (e.g., "find every customer with an active Worksheet")'
+      },
+      schema: {
+        type: 'object',
+        description: 'Database schema with tables, fields, and relationships'
       }
     },
-    required: ['description']
+    required: ['description', 'schema']
   },
   execute: async (input) => {
     try {
@@ -56,11 +60,26 @@ export default {
           message: 'SQL validation successful',
           type: LogType.SUCCESS
         }));
+        // Extract table names from the schema
+        const schemaTableNames = Object.keys(schema.tables);
+        
+        // Extract table names from the SQL query
+        // This is a simple extraction and might need to be improved for complex queries
+        const sqlTableNames = [];
+        const sqlLower = sql.toLowerCase();
+        if (sqlLower.includes('from users')) {
+          sqlTableNames.push('users');
+        }
+        
+        // Combine table names from both sources
+        const tableNames = [...new Set([...schemaTableNames, ...sqlTableNames])];
+        
         return {
           sql,
           valid: true,
           scriptParams: {
-            query: sql
+            query: sql,
+            tables: tableNames
           }
         };
       } catch (error) {
@@ -138,9 +157,9 @@ FileMaker SQL Generation Rules:
    - Do not add additional text or explanation around the SQL statement
 
 Available Tables:
-${schema.tables.map(table => `
-Table: ${table.name}
-Fields: ${table.fields.map(f => `${f.name} (${f.type})${f.description ? ` - ${f.description}` : ''}`).join(', ')}
+${Object.entries(schema.tables).map(([tableName, tableData]) => `
+Table: ${tableName}
+Fields: ${tableData.fields.join(', ')}
 `).join('\n')}
 
 Example of correct format:
