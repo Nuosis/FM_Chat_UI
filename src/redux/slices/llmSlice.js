@@ -1,8 +1,9 @@
 import { createSlice } from '@reduxjs/toolkit';
 
+const now = new Date().toLocaleString();
 const initialState = {
   temperature: 0.7,
-  systemInstructions: 'Currently, the user is chatting with you from within a FileMaker database. Most likely their question will be related to the database. Do not make up information about this database. If you do not know the answer or need more information, ask.',
+  systemInstructions: `Currently, the user is chatting with you from within a FileMaker database. Most likely their question will be related to the database. Do not make up information about this database. If you do not know the answer or need more information, ask. The current date and time is ${now}`,
   provider: import.meta.env.VITE_DEFAULT_PROVIDER || 'openai',
   model: import.meta.env.VITE_DEFAULT_MODEL || 'gpt-4o-mini',
   isInitialized: false,
@@ -11,7 +12,7 @@ const initialState = {
     count: 0,
     error: null
   }
-};
+};;
 
 const llmSlice = createSlice({
   name: 'llm',

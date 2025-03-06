@@ -25,3 +25,7 @@
 ### Removed
 
 *   N/A
+
+### Changed
+
+*   Updated default agent implementation to only require `VITE_ENABLE_AGENTS` environment variable. If `VITE_DEFAULT_AGENT` is undefined, the system will use a default agent named "default".

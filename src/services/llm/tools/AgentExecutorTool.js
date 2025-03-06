@@ -1,5 +1,8 @@
 import { createAgentManager } from '../agents';
 
+// Feature flag from environment variable
+const enableAgents = import.meta.env.VITE_ENABLE_AGENTS === 'true';
+
 /**
  * Tool for executing tasks with agents
  */
@@ -33,7 +36,40 @@ export default {
       },
       outputSchema: {
         type: 'object',
-        description: 'For create action: JSON Schema for structured output (optional)'
+        description: 'For create action: JSON Schema for structured output (optional)',
+        properties: {
+          type: {
+            type: 'string',
+            description: 'The type of the schema, usually "object"'
+          },
+          properties: {
+            type: 'object',
+            description: 'The properties of the schema',
+            properties: {
+              example_property: {
+                type: 'object',
+                description: 'Example property definition',
+                properties: {
+                  type: {
+                    type: 'string',
+                    description: 'The type of the property'
+                  },
+                  description: {
+                    type: 'string',
+                    description: 'Description of the property'
+                  }
+                }
+              }
+            }
+          },
+          required: {
+            type: 'array',
+            description: 'List of required properties',
+            items: {
+              type: 'string'
+            }
+          }
+        }
       },
       task: {
         type: 'string',
@@ -47,6 +83,14 @@ export default {
     required: ['action', 'agentName']
   },
   execute: async function({ action, agentName, agentRole, tools, outputSchema, task, feedback }, context) {
+    // Check if agents are enabled
+    if (!enableAgents) {
+      return {
+        success: false,
+        error: 'Agents are disabled via VITE_ENABLE_AGENTS environment variable'
+      };
+    }
+    
     // Get the LLM service from context
     const llmService = context.llmService;
     if (!llmService) {
@@ -56,6 +100,14 @@ export default {
     // Create agent manager if it doesn't exist in context
     if (!context.agentManager) {
       context.agentManager = createAgentManager(llmService);
+      
+      // If agent manager creation failed (likely because agents are disabled)
+      if (!context.agentManager) {
+        return {
+          success: false,
+          error: 'Agent manager could not be created. Agents may be disabled.'
+        };
+      }
     }
     
     const agentManager = context.agentManager;

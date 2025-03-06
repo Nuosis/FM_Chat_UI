@@ -8,9 +8,16 @@ export const LogType = {
   DEBUG: 'debug'
 };
 
+// Parse boolean from environment variable string
+const parseBooleanEnv = (value, defaultValue) => {
+  if (value === undefined || value === null) return defaultValue;
+  return value.toLowerCase() === 'true';
+};
+
 const initialState = {
   logs: [],
-  schema: null
+  schema: null,
+  showHeader: parseBooleanEnv(import.meta.env.VITE_SHOW_HEADER, true) // Feature flag to control header visibility
 };
 
 const appSlice = createSlice({
@@ -56,9 +63,15 @@ const appSlice = createSlice({
     },
     setSchema: (state, action) => {
       state.schema = action.payload;
+    },
+    toggleHeader: (state) => {
+      state.showHeader = !state.showHeader;
+    },
+    setHeaderVisibility: (state, action) => {
+      state.showHeader = action.payload;
     }
   }
 });
 
-export const { createLog, clearLogs, setSchema } = appSlice.actions;
+export const { createLog, clearLogs, setSchema, toggleHeader, setHeaderVisibility } = appSlice.actions;
 export default appSlice.reducer;

@@ -11,7 +11,7 @@ The application requires the following environment variables to be set:
 *   `VITE_DEEPSEEK_API_KEY`: Deepseek API key (required for Deepseek)
 *   `VITE_GEMINI_API_KEY`: Gemini API key (required for Gemini)
 *   `VITE_DEFAULT_PROVIDER`: Default LLM provider (optional, defaults to OpenAI)
-
+*   `VITE_ENABLE_AGENTS`: Enable/disable LLM agents and tools (optional, defaults to false). When agents are enabled and no default agent is specified, the system will use a default agent named "default".
 ## Dependencies
 
 The application has the following dependencies:

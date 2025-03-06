@@ -18,7 +18,60 @@ export default {
       },
       schema: {
         type: 'object',
-        description: 'Database schema with tables, fields, and relationships'
+        description: 'Database schema with tables, fields, and relationships',
+        properties: {
+          tables: {
+            type: 'object',
+            description: 'Map of table names to table definitions',
+            properties: {
+              table_example: {
+                type: 'object',
+                description: 'Example table definition',
+                properties: {
+                  primaryKey: {
+                    type: 'string',
+                    description: 'Primary key field name'
+                  },
+                  fields: {
+                    type: 'array',
+                    description: 'List of field names in the table',
+                    items: {
+                      type: 'string'
+                    }
+                  },
+                  displayFields: {
+                    type: 'array',
+                    description: 'List of fields to display',
+                    items: {
+                      type: 'string'
+                    }
+                  }
+                }
+              }
+            }
+          },
+          relationships: {
+            type: 'array',
+            description: 'List of relationships between tables',
+            items: {
+              type: 'object',
+              properties: {
+                sourceTable: {
+                  type: 'string',
+                  description: 'Source table name'
+                },
+                targetTable: {
+                  type: 'string',
+                  description: 'Target table name'
+                },
+                type: {
+                  type: 'string',
+                  description: 'Type of relationship (e.g., "one-to-many")'
+                }
+              }
+            }
+          }
+        }
       }
     },
     required: ['description', 'schema']

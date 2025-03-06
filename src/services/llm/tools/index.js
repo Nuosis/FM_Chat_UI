@@ -3,15 +3,20 @@ import sqlGeneratorTool from './SQLGeneratorTool';
 import getFileMakerSchemaTool from './GetFileMakerSchemaTool';
 import getStructuredDataTool from './GetStructuredDataTool';
 import agentExecutorTool from './AgentExecutorTool';
+import duckDuckGoSearchTool from './DuckDuckGoSearchTool';
 import { FileMakerToolAdapter } from './FileMakerToolAdapter';
 import { inFileMaker } from '../../../utils/filemaker';
+
+// Feature flag from environment variable
+const enableAgents = import.meta.env.VITE_ENABLE_AGENTS === 'true';
 
 const fileMakerAdapter = new FileMakerToolAdapter();
 // Define local tools object for export
 const localTools = {
   exampleTool,
   sqlGeneratorTool,
-  agentExecutorTool,
+  ...(enableAgents ? { agentExecutorTool } : {}),
+  duckDuckGoSearchTool,
   // getStructuredDataTool,
   // getFileMakerSchemaTool
 };
@@ -52,11 +57,21 @@ const validateTool = (tool) => {
 export const registerTools = async (service) => {
   let registeredCount = 0;
   
+  // If agents are not enabled, return early
+  if (!enableAgents) {
+    console.log('Agents are disabled via VITE_ENABLE_AGENTS environment variable');
+    return {
+      success: false,
+      toolCount: 0
+    };
+  }
+  
   // Register local tools
   const tools = [
     exampleTool,
     sqlGeneratorTool,
-    agentExecutorTool,
+    ...(enableAgents ? [agentExecutorTool] : []),
+    duckDuckGoSearchTool,
     // getStructuredDataTool,
     // getFileMakerSchemaTool
   ];

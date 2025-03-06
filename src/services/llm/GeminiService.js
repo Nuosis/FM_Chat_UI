@@ -24,6 +24,26 @@ export class GeminiService extends BaseLLMService {
     } = options;
 
     // Get registered tools and format them for Gemini
+    console.log(`Formatting ${Object.keys(this.toolsRegistry).length} tools for Gemini request`);
+    
+    // Log each tool's parameters before formatting
+    Object.entries(this.toolsRegistry).forEach(([name, tool], index) => {
+      console.log(`Tool ${index} - ${name}:`);
+      console.log(`Parameters type: ${tool.parameters?.type}`);
+      if (tool.parameters?.properties) {
+        console.log(`Properties keys: ${Object.keys(tool.parameters.properties).join(', ')}`);
+        
+        // Check for object type properties without defined properties
+        Object.entries(tool.parameters.properties).forEach(([propName, propDef]) => {
+          if (propDef.type === 'object' && (!propDef.properties || Object.keys(propDef.properties).length === 0)) {
+            console.log(`WARNING: Property "${propName}" is type "object" but has no properties defined`);
+          }
+        });
+      } else {
+        console.log(`No properties defined for tool parameters`);
+      }
+    });
+    
     const registeredTools = Object.values(this.toolsRegistry).map(tool => ({
       function_declarations: [{
         name: tool.name,
@@ -78,23 +98,91 @@ export class GeminiService extends BaseLLMService {
       tools: registeredTools.length > 0 ? registeredTools : undefined
     };
 
+    // Log detailed information about tools in the request
+    if (requestData.tools && requestData.tools.length > 0) {
+      console.log(`Detailed tool information in final request:`);
+      requestData.tools.forEach((tool, index) => {
+        const funcDecl = tool.function_declarations[0];
+        console.log(`Tool[${index}]: ${funcDecl.name}`);
+        
+        if (funcDecl.parameters && funcDecl.parameters.properties) {
+          Object.entries(funcDecl.parameters.properties).forEach(([propName, propDef]) => {
+            console.log(`  Property "${propName}": type=${propDef.type}`);
+            
+            // Check for object properties without defined sub-properties
+            if (propDef.type === 'object') {
+              if (!propDef.properties || Object.keys(propDef.properties).length === 0) {
+                console.log(`  ERROR: Property "${propName}" is type "object" but has no properties defined`);
+                console.log(`  This will cause a 400 error with Gemini API`);
+              } else {
+                console.log(`  Property "${propName}" has ${Object.keys(propDef.properties).length} sub-properties`);
+              }
+            }
+          });
+        }
+      });
+    }
+    
     store.dispatch(createLog({
       message: `Gemini request data:\n${JSON.stringify(requestData, null, 2)}`,
       type: 'debug'
     }));
 
-    const response = await this.axios.post(
-      `${this.config.endpoint}/${model}:generateContent`,
-      requestData,
-      { headers: this.config.headers }
-    );
+    try {
+      const response = await this.axios.post(
+        `${this.config.endpoint}/${model}:generateContent`,
+        requestData,
+        { headers: this.config.headers }
+      );
 
-    store.dispatch(createLog({
-      message: `Gemini response data:\n${JSON.stringify(response.data, null, 2)}`,
-      type: 'debug'
-    }));
+      store.dispatch(createLog({
+        message: `Gemini response data:\n${JSON.stringify(response.data, null, 2)}`,
+        type: 'debug'
+      }));
 
-    return response;
+      return response;
+    } catch (error) {
+      console.error('Gemini API Error:', error);
+      
+      // Log detailed error information
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Error Response Data:', error.response.data);
+        console.error('Error Response Status:', error.response.status);
+        console.error('Error Response Headers:', error.response.headers);
+        
+        // Log the detailed error message
+        if (error.response.data && error.response.data.error) {
+          console.error('Detailed Error Message:', error.response.data.error.message);
+          console.error('Error Code:', error.response.data.error.code);
+          console.error('Error Status:', error.response.data.error.status);
+        }
+        
+        store.dispatch(createLog({
+          message: `Gemini API Error Response Data: ${JSON.stringify(error.response.data, null, 2)}`,
+          type: 'error'
+        }));
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('Error Request:', error.request);
+        
+        store.dispatch(createLog({
+          message: 'Gemini API Error: No response received from server',
+          type: 'error'
+        }));
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('Error Message:', error.message);
+        
+        store.dispatch(createLog({
+          message: `Gemini API Error: ${error.message}`,
+          type: 'error'
+        }));
+      }
+      
+      throw error;
+    }
   }
 
   parseResponse(response) {

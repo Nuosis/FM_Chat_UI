@@ -17,10 +17,12 @@ import {
   Typography,
   Collapse,
   CircularProgress,
-  TextField
+  TextField,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import { Settings as SettingsIcon, Menu as MenuIcon, Close as CloseIcon } from '@mui/icons-material';
-import { createLog, LogType } from '../redux/slices/appSlice';
+import { createLog, LogType, toggleHeader, setHeaderVisibility } from '../redux/slices/appSlice';
 import {
   setTemperature,
   setSystemInstructions,
@@ -32,6 +34,7 @@ import llmServiceFactory from '../services/llm';
 const Header = ({ isCollapsed, onToggleCollapse, setActiveComponent, activeComponent }) => {
   const dispatch = useDispatch();
   const llmSettings = useSelector(state => state.llm);
+  const { showHeader } = useSelector(state => state.app);
   const components = ['LLMChat', 'Log'];
   const [providers] = useState(() => {
     const factory = llmServiceFactory;
@@ -304,6 +307,23 @@ const Header = ({ isCollapsed, onToggleCollapse, setActiveComponent, activeCompo
                 />
               </Box>
               
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={showHeader}
+                    onChange={() => dispatch(toggleHeader())}
+                    color="primary"
+                  />
+                }
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography>Show Header</Typography>
+                    <Typography variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                      (Alt+H)
+                    </Typography>
+                  </Box>
+                }
+              />
             </Stack>
           </Stack>
         </DialogContent>

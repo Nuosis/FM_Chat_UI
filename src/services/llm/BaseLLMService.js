@@ -93,6 +93,12 @@ export class BaseLLMService {
           type: 'debug'
         }));
         
+        // Log more detailed information about the tool result
+        console.log(`Detailed tool result for ${toolCall.function.name}:`);
+        console.log(`Result type: ${typeof result}`);
+        console.log(`Result structure: ${result ? Object.keys(result).join(', ') : 'empty'}`);
+        console.log(`Full result: ${JSON.stringify(result, null, 2)}`);
+        
         toolResults.push({
           tool_call_id: toolCall.id,
           name: toolCall.function.name,
@@ -121,12 +127,28 @@ export class BaseLLMService {
         content: response.content || '',
         tool_calls: response.tool_calls || []
       },
-      ...toolResults.map(result => ({
-        role: 'tool',
-        content: typeof result.content === 'string' ? result.content : JSON.stringify(result.content),
-        tool_call_id: result.tool_call_id
-      }))
+      ...toolResults.map(result => {
+        const formattedContent = typeof result.content === 'string'
+          ? result.content
+          : JSON.stringify(result.content);
+        
+        console.log(`Formatting tool result for ${result.name}:`);
+        console.log(`Original content type: ${typeof result.content}`);
+        console.log(`Formatted content: ${formattedContent}`);
+        
+        return {
+          role: 'tool',
+          content: formattedContent,
+          tool_call_id: result.tool_call_id
+        };
+      })
     ];
+    
+    console.log(`Final message structure for LLM follow-up:`);
+    newMessages.forEach((msg, i) => {
+      console.log(`Message ${i} - Role: ${msg.role}, Content type: ${typeof msg.content}`);
+      console.log(`Content preview: ${typeof msg.content === 'string' ? msg.content.substring(0, 100) : 'non-string content'}`);
+    });
     
     store.dispatch(createLog({
       message: `Sending follow-up message with tool results: ${JSON.stringify(newMessages, null, 2)}`,

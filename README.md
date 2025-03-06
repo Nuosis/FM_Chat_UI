@@ -14,8 +14,8 @@ fm_chat_ui is a React application that provides a chat interface for interacting
     *   `VITE_DEEPSEEK_API_KEY`: Deepseek API key (required for Deepseek)
     *   `VITE_GEMINI_API_KEY`: Gemini API key (required for Gemini)
     *   `VITE_DEFAULT_PROVIDER`: Default LLM provider (optional, defaults to OpenAI)
+    *   `VITE_SHOW_HEADER`: Control header visibility (optional, defaults to true)
 4.  Start the development server: `npm run dev`
-
 ## Key Features
 
 *   Chat interface for interacting with LLMs
@@ -25,6 +25,17 @@ fm_chat_ui is a React application that provides a chat interface for interacting
 *   Integration with FileMaker databases (using `fm-gofer`)
 *   Tool registration for LLM services
 *   Logging with different log types (INFO, SUCCESS, WARNING, ERROR)
+*   Dark/light mode support
+*   Configurable UI with feature flags
+
+## Feature Flags
+
+The application supports several feature flags that can be configured in the `.env` file:
+
+*   `VITE_ENABLE_AGENTS`: Enable/disable LLM agents and tools (default: false)
+*   `VITE_SHOW_HEADER`: Show/hide the application header (default: true) If true user can change the provider and model and view logs
+
+These flags can be set to `true` or `false` in the `.env` file. The header visibility can also be toggled at runtime using the settings dialog or the Alt+H keyboard shortcut. When agents are enabled and no default agent is specified, the system will use a default agent named "default".
 *   Dark/light mode support
 
 ## Dependencies

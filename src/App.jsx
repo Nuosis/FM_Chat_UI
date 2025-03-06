@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ThemeProvider, createTheme, CssBaseline, Box, useMediaQuery } from '@mui/material';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store } from './redux/store';
-import { setSchema, createLog, LogType } from './redux/slices/appSlice';
+import { setSchema, createLog, LogType, toggleHeader, setHeaderVisibility } from './redux/slices/appSlice';
 import { setInitialized, setInitError, setRegisteredTools } from './redux/slices/llmSlice';
 import Header from './components/Header';
 import LLMChat from './components/LLMChat';
@@ -10,14 +10,30 @@ import Log from './components/Log';
 import Spinner from './components/Spinner';
 import llmServiceFactory from './services/llm';
 import { registerTools } from './services/llm/tools';
+import { createAgentManager, initializeDefaultAgent } from './services/llm/agents';
 
 const AppContent = () => {
   const dispatch = useDispatch();
   const llmSettings = useSelector(state => state.llm);
+  const { showHeader } = useSelector(state => state.app);
   const [isLoading, setIsLoading] = useState(true);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(true);
   const [activeComponent, setActiveComponent] = useState('LLMChat');
   const [logOpen, setLogOpen] = useState(false);
+
+  // Add keyboard shortcut to toggle header visibility (Alt+H)
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.altKey && event.key === 'h') {
+        dispatch(toggleHeader());
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [dispatch]);
 
   useEffect(() => {
     const initialize = async () => {
@@ -31,6 +47,8 @@ const AppContent = () => {
         dispatch(setSchema(schemaSummary));
         dispatch(createLog('Schema summary loaded successfully', LogType.SUCCESS));
 
+        // Check if we're running in FileMaker context
+        const inFileMaker = typeof window.FileMaker !== 'undefined';
         if (!inFileMaker) {
           dispatch(createLog('Running in standalone mode (no FileMaker)', LogType.INFO));
         }
@@ -63,6 +81,25 @@ const AppContent = () => {
           dispatch(setInitialized());
           dispatch(createLog(`${llmSettings.provider} service initialized`, LogType.SUCCESS));
           console.log('Service initialization complete');
+          
+          // Initialize agent if agents are enabled
+          if (import.meta.env.VITE_ENABLE_AGENTS === 'true') {
+            const agentName = import.meta.env.VITE_DEFAULT_AGENT || 'default';
+            dispatch(createLog(`Initializing agent: ${agentName}`, LogType.INFO));
+            try {
+              const agentManager = createAgentManager(service);
+              if (agentManager) {
+                const agent = await initializeDefaultAgent(agentManager);
+                if (agent) {
+                  dispatch(createLog(`Agent ${agent.name} initialized with tools: ${agent.tools.join(', ')}`, LogType.SUCCESS));
+                } else {
+                  dispatch(createLog(`Failed to initialize agent`, LogType.WARNING));
+                }
+              }
+            } catch (error) {
+              dispatch(createLog(`Error initializing agent: ${error.message}`, LogType.ERROR));
+            }
+          }
         }
 
         // Stop loading if we have a provider
@@ -106,18 +143,20 @@ const AppContent = () => {
       color: 'text.primary'
     }}>
       <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <Header
-          isCollapsed={isHeaderCollapsed}
-          onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
-          setActiveComponent={(component) => {
-            if (component === 'Log') {
-              setLogOpen(true);
-            } else {
-              setActiveComponent(component);
-            }
-          }}
-          activeComponent={activeComponent}
-        />
+        {showHeader && (
+          <Header
+            isCollapsed={isHeaderCollapsed}
+            onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+            setActiveComponent={(component) => {
+              if (component === 'Log') {
+                setLogOpen(true);
+              } else {
+                setActiveComponent(component);
+              }
+            }}
+            activeComponent={activeComponent}
+          />
+        )}
         {activeComponent === 'LLMChat' && <LLMChat />}
         <Log open={logOpen} onClose={() => setLogOpen(false)} />
       </Box>

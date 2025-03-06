@@ -7,7 +7,9 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ProgressText from './ProgressText';
 import { createLog, clearLogs, LogType } from '../redux/slices/appSlice';
+import { setTemperature, setSystemInstructions } from '../redux/slices/llmSlice';
 import llmServiceFactory from '../services/llm';
+import { createAgentManager } from '../services/llm/agents';
 import {
   Box,
   Paper,
@@ -24,6 +26,57 @@ import {
   Alert
 } from '@mui/material';
 import { Send as SendIcon, Settings as SettingsIcon, Delete as DeleteIcon } from '@mui/icons-material';
+
+/**
+ * Helper function to handle direct LLM calls when not using an agent
+ */
+const fallbackToDirectLLM = async (service, tools, messages, newMessage, llmSettings, schema, dispatch, setMessages) => {
+  // Log the request
+  const requestPayload = {
+    messages: [
+      {
+        role: 'system',
+        content: `You are a helpful AI assistant with deep knowledge about FileMaker. ${JSON.stringify(schema)}. ${llmSettings.systemInstructions}`
+      },
+      ...messages,
+      newMessage
+    ],
+    model: llmSettings.model,
+    temperature: llmSettings.temperature,
+    tools: tools
+  };
+  
+  dispatch(createLog(
+    `Messages:\n${JSON.stringify(requestPayload.messages, null, 2)}`,
+    LogType.INFO
+  ));
+  
+  dispatch(createLog(
+    `Tools:\n${JSON.stringify(tools, null, 2)}`,
+    LogType.INFO
+  ));
+  
+  // Send the message to the LLM service
+  return await service.sendMessage(
+    requestPayload.messages,
+    {
+      model: requestPayload.model,
+      temperature: requestPayload.temperature,
+      tools: tools
+    },
+    (progressText) => {
+      if (progressText !== null && progressText !== undefined) {
+        setMessages(prev => [
+          ...prev.slice(0, -1),
+          {
+            role: 'assistant',
+            content: <ProgressText text={progressText} />
+          }
+        ]);
+      }
+    }
+  );
+};
 
 const SlideTransition = (props) => {
   return <Slide {...props} direction="left" />;
@@ -96,49 +149,53 @@ const LLMChat = () => {
       const service = await llmServiceFactory.initializeService(llmSettings.provider);
       const tools = service.getTools();
       
-      // Log the request
-      const requestPayload = {
-        messages: [
-          {
-            role: 'system',
-            content: `You are a helpful AI assistant with deep knowledge about FileMaker. ${JSON.stringify(schema)}. ${llmSettings.systemInstructions}`
-          },
-          ...messages,
-          newMessage
-        ],
-        model: llmSettings.model,
-        temperature: llmSettings.temperature,
-        tools: tools
-      };
-      dispatch(createLog(
-        `Messages:\n${JSON.stringify(requestPayload.messages, null, 2)}`,
-        LogType.INFO
-      ));
-      dispatch(createLog(
-        `Tools:\n${JSON.stringify(tools, null, 2)}`,
-        LogType.INFO
-      ));
-      
+      // Check if agents are enabled
+      const enableAgents = import.meta.env.VITE_ENABLE_AGENTS === 'true';
+      let response;
       const startTime = Date.now();
-      const response = await service.sendMessage(
-        requestPayload.messages,
-        {
-          model: requestPayload.model,
-          temperature: requestPayload.temperature,
-          tools: tools
-        },
-        (progressText) => {
-          if (progressText !== null && progressText !== undefined) {
-            setMessages(prev => [
-              ...prev.slice(0, -1),
-              {
-                role: 'assistant',
-                content: <ProgressText text={progressText} />
-              }
-            ]);
+      
+      if (enableAgents) {
+        // Use an agent to execute the task
+        try {
+          const agentName = import.meta.env.VITE_DEFAULT_AGENT || 'default';
+          dispatch(createLog(`Using agent: ${agentName}`, LogType.INFO));
+          
+          const agentManager = createAgentManager(service);
+          if (!agentManager) {
+            throw new Error('Agent manager could not be created');
           }
+          
+          // Update progress text
+          const updateProgress = (progressText) => {
+            if (progressText !== null && progressText !== undefined) {
+              setMessages(prev => [
+                ...prev.slice(0, -1),
+                {
+                  role: 'assistant',
+                  content: <ProgressText text={progressText} />
+                }
+              ]);
+            }
+          };
+          
+          // Execute the task with the agent
+          updateProgress(`Working with agent ${agentName}...`);
+          response = await agentManager.executeTask(agentName, input, {
+            model: llmSettings.model,
+            temperature: llmSettings.temperature
+          }, updateProgress);
+          
+          dispatch(createLog(`Agent ${agentName} executed task successfully`, LogType.SUCCESS));
+        } catch (error) {
+          dispatch(createLog(`Error using agent: ${error.message}. Falling back to direct LLM call.`, LogType.WARNING));
+          
+          // Fall back to direct LLM call
+          response = await fallbackToDirectLLM(service, tools, messages, newMessage, llmSettings, schema, dispatch, setMessages);
         }
-      );
+      } else {
+        // Use direct LLM call
+        response = await fallbackToDirectLLM(service, tools, messages, newMessage, llmSettings, schema, dispatch, setMessages);
+      }
       
       const processingTime = Date.now() - startTime;
       
