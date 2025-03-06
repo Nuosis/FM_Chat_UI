@@ -2,6 +2,7 @@ import openAIService from './OpenAIService';
 import anthropicService from './AnthropicService';
 import deepseekService from './DeepseekService';
 import ollamaService from './OllamaService';
+import geminiService from './GeminiService';
 import { store } from '../../redux/store';
 import { createLog } from '../../redux/slices/appSlice';
 
@@ -11,6 +12,7 @@ class LLMServiceFactory {
       openai: openAIService,
       anthropic: anthropicService,
       deepseek: deepseekService,
+      gemini: geminiService,
       ollama: ollamaService
     };
     
@@ -63,7 +65,8 @@ class LLMServiceFactory {
     const keyMap = {
       openai: import.meta.env.VITE_OPENAI_API_KEY,
       anthropic: import.meta.env.VITE_ANTHROPIC_API_KEY,
-      deepseek: import.meta.env.VITE_DEEPSEEK_API_KEY
+      deepseek: import.meta.env.VITE_DEEPSEEK_API_KEY,
+      gemini: import.meta.env.VITE_GEMINI_API_KEY
     };
 
     return keyMap[provider];

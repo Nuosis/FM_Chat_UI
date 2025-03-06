@@ -40,6 +40,19 @@ export const PROVIDERS = {
       'deepseek-reasoner'
     ]
   },
+  GEMINI: {
+    name: 'Gemini',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': '{apiKey}' // apiKey will be replaced at runtime
+    },
+    models: [
+      'gemini-2.0-flash',
+      'gemini-2.0-pro',
+      'gemini-2.0-flash-Lite'
+    ]
+  },
   OLLAMA: {
     name: 'Ollama',
     endpoint: 'http://localhost:11434/api/chat',
