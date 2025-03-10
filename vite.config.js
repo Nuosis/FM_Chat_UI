@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { viteSingleFile } from "vite-plugin-singlefile";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), viteSingleFile()],
   server: {
-    port: 1235,
+    port: 1111,
     open: false,
     proxy: {
       '/anthropic': {
@@ -30,6 +31,15 @@ export default defineConfig({
             console.log('Received Response for:', req.url, 'Status:', proxyRes.statusCode);
           });
         }
+      }
+    }
+  },
+  build: {
+    assetsInlineLimit: 100000000,
+    rollupOptions: {
+      output: {
+        inlineDynamicImports: true,
+        manualChunks: undefined
       }
     }
   },

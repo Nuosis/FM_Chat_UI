@@ -12,7 +12,7 @@ const initialState = {
     count: 0,
     error: null
   }
-};;
+};
 
 const llmSlice = createSlice({
   name: 'llm',

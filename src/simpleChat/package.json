@@ -1,0 +1,28 @@
+{
+  "name": "simple-chat",
+  "version": "1.0.0",
+  "description": "A simplified chat application focusing on processMessagesWithSystemPrompt",
+  "main": "index.js",
+  "scripts": {
+    "start": "vite",
+    "build": "vite build",
+    "serve": "vite preview",
+    "run-chat": "./start.sh"
+  },
+  "dependencies": {
+    "@mui/material": "^5.14.0",
+    "@mui/icons-material": "^5.14.0",
+    "@mui/system": "^5.14.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-markdown": "^8.0.7",
+    "react-syntax-highlighter": "^15.5.0",
+    "prop-types": "^15.8.1",
+    "fm-gofer": "^1.10.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.3",
+    "vite": "^4.4.4",
+    "vite-plugin-singlefile": "^2.2.0"
+  }
+}
