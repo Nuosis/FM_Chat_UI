@@ -10,6 +10,7 @@ import { createLog, clearLogs, LogType } from '../redux/slices/appSlice';
 import { setTemperature, setSystemInstructions } from '../redux/slices/llmSlice';
 import llmServiceFactory from '../services/llm';
 import { createAgentManager } from '../services/llm/agents';
+import { performFMScript, processMessagesWithSystemPrompt } from '../utils/filemaker';
 import {
   Box,
   Paper,
@@ -146,6 +147,94 @@ const LLMChat = () => {
       let assistantMessage = { role: 'assistant', content: <ProgressText text="Thinking..." /> };
       setMessages(prev => [...prev, assistantMessage]);
 
+      // Check if we need to use FileMaker integration
+      const useFMIntegration = import.meta.env.VITE_USE_FM_INTEGRATION === 'true';
+      
+      if (useFMIntegration) {
+        try {
+          // Check if we have a config from FileMaker
+          console.log("Checking for window.fmChatConfig:", window.fmChatConfig);
+          
+          // If no config exists in the window object, throw an error
+          if (!window.fmChatConfig) {
+            throw new Error('FileMaker integration is enabled but no config was provided. Call processMessagesWithSystemPrompt first.');
+          }
+          
+          // Create a deep clone of the config to avoid modifying the original
+          let config = JSON.parse(JSON.stringify(window.fmChatConfig));
+          
+          console.log("Using existing config:", config);
+          
+          // Validate the config
+          if (!config.payload || !config.payload.messages || !Array.isArray(config.payload.messages) || config.payload.messages.length === 0) {
+            throw new Error('Invalid config: payload.messages must be a non-empty array');
+          }
+          
+          // Validate that the first message is a system message
+          if (config.payload.messages[0].role !== 'system') {
+            throw new Error('Invalid config: first message must be a system message');
+          }
+          
+          // Call FileMaker script with the config and user input
+          dispatch(createLog(
+            `Calling FileMaker script "Make Call" with config:\n${JSON.stringify(config, null, 2)}`,
+            LogType.INFO
+          ));
+          
+          const result = await performFMScript({
+            script: "Make Call",
+            parameter: processMessagesWithSystemPrompt(config, input)
+          });
+          
+          // Log the response
+          dispatch(createLog(
+            `FileMaker response:\n${JSON.stringify(result, null, 2)}`,
+            LogType.INFO
+          ));
+          
+          // Extract the assistant's response content based on the response format
+          let assistantContent = "No response received from FileMaker.";
+          
+          // Handle different response formats from various LLM providers
+          if (result) {
+            console.log("Processing FileMaker response:", result);
+            
+            // OpenAI format
+            if (result.choices && result.choices.length > 0 && result.choices[0].message) {
+              assistantContent = result.choices[0].message.content;
+            }
+            // Ollama format
+            else if (result.message && result.message.content) {
+              assistantContent = result.message.content;
+            }
+            // Direct content field
+            else if (result.content) {
+              assistantContent = result.content;
+            }
+            
+            // Add the assistant's response to the fmChatConfig messages array
+            if (window.fmChatConfig && window.fmChatConfig.payload && window.fmChatConfig.payload.messages) {
+              window.fmChatConfig.payload.messages.push({
+                role: 'assistant',
+                content: assistantContent
+              });
+            }
+          }
+          
+          // Update the UI with the response
+          setMessages(prev => [...prev.slice(0, -1), {
+            role: 'assistant',
+            content: assistantContent
+          }]);
+          
+          return;
+        } catch (error) {
+          dispatch(createLog(`Error calling FileMaker: ${error.message}. Falling back to direct LLM call.`, LogType.WARNING));
+          // Continue with fallback to direct LLM call
+        }
+      }
+      
+      // If not using FileMaker integration or if it failed, fall back to direct LLM call
       const service = await llmServiceFactory.initializeService(llmSettings.provider);
       const tools = service.getTools();
       

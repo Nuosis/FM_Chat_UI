@@ -42,7 +42,8 @@ export const PROVIDERS = {
   },
   GEMINI: {
     name: 'Gemini',
-    endpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
+    endpoint: 'https://generativelanguage.googleapis.com/v1beta/{model=models/*}:generateContent',
+    modelsEndpoint: 'https://generativelanguage.googleapis.com/v1beta/models',
     headers: {
       'Content-Type': 'application/json',
       'x-goog-api-key': '{apiKey}' // apiKey will be replaced at runtime
@@ -57,6 +58,14 @@ export const PROVIDERS = {
     name: 'Ollama',
     endpoint: 'http://localhost:11434/api/chat',
     modelsEndpoint: 'http://localhost:11434/api/tags',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  },
+  LMSTUDIO: {
+    name: 'Ollama',
+    endpoint: 'http://localhost:1234/v1/chat/completions',
+    modelsEndpoint: 'http://localhost:1234/v1/models',
     headers: {
       'Content-Type': 'application/json'
     }

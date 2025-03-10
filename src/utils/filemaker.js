@@ -1,5 +1,67 @@
 import { store } from '../redux/store';
 import { createLog } from '../redux/slices/appSlice';
+/**
+ * Process messages array with system prompt
+ * @param {Object|string} config - Configuration object or JSON string containing API key, endpoint, and payload
+ * @param {string} userContent - Optional user message content to add to the messages array
+ * @returns {Object} - The processed configuration object with updated messages array
+ */
+export const processMessagesWithSystemPrompt = (config, userContent = null) => {
+  // Parse config if it's a string
+  let configObj;
+  try {
+    configObj = typeof config === 'string' ? JSON.parse(config) : config;
+  } catch (error) {
+    console.error("Failed to parse config:", error);
+    console.log("config:", config);
+    throw new Error(`Failed to parse config: ${error.message}`);
+  }
+
+  console.log("handling filmaker as driver. ConfigObj:", configObj);
+  
+  // Validate the config object
+  if (!configObj || typeof configObj !== 'object') {
+    console.log("configObj:", configObj);
+    throw new Error('Config must be an object');
+  }
+  
+  // Validate payload and messages
+  if (!configObj.payload || !configObj.payload.messages) {
+    throw new Error('Config must contain payload.messages');
+  }
+  
+  // Validate that messages is an array
+  if (!Array.isArray(configObj.payload.messages)) {
+    throw new Error('Messages must be an array');
+  }
+  
+  // Validate that the first message is a system message
+  if (configObj.payload.messages.length === 0 || configObj.payload.messages[0].role !== 'system') {
+    throw new Error('First message must be a system message');
+  }
+  
+  // If user content is provided, add it to the messages array
+  if (userContent) {
+    configObj.payload.messages.push({
+      role: 'user',
+      content: userContent
+    });
+  }
+  
+  // Store the config in the window object for use by the LLMChat component
+  if (typeof window !== 'undefined') {
+    console.log("Setting window.fmChatConfig:", configObj);
+    window.fmChatConfig = configObj;
+  }
+  
+  return configObj;
+};
+
+// Make the function globally available
+if (typeof window !== 'undefined') {
+  window.processMessagesWithSystemPrompt = processMessagesWithSystemPrompt;
+}
+
 
 
 // Type checking for FileMaker environment
