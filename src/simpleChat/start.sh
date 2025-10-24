@@ -8,5 +8,5 @@ npm install
 
 # Start the development server
 echo "Starting development server..."
-echo "Open your browser and navigate to http://localhost:3000"
+echo "Open your browser and navigate to http://localhost:3010"
 npm start

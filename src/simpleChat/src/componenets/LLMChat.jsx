@@ -4,7 +4,12 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ProgressText from './ProgressText';
-import { performFMScript, processMessagesWithSystemPrompt } from './filemaker';
+import ChatConfig from './ChatConfig';
+import {
+  sendMessage,
+  initializeConfig
+} from '../service/processRouter';
+import { getFileMakerStatus } from '../service/filemaker';
 import {
   Box,
   Paper,
@@ -18,7 +23,7 @@ import {
   Typography,
   Alert
 } from '@mui/material';
-import { Send as SendIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Send as SendIcon, Delete as DeleteIcon, Settings as SettingsIcon } from '@mui/icons-material';
 
 const SlideTransition = (props) => {
   return <Slide {...props} direction="left" />;
@@ -29,6 +34,8 @@ const LLMChat = () => {
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
+  const [isFileMaker, setIsFileMaker] = useState(false);
   const messagesEndRef = useRef(null);
 
   const handleClearChat = () => {
@@ -40,9 +47,62 @@ const LLMChat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleConfigSave = (newConfig) => {
+    console.log(`Config saved (FileMaker env: ${isFileMaker}):`, newConfig);
+    
+    // Provide user feedback based on environment
+    if (isFileMaker) {
+      console.log("Configuration updated for FileMaker environment");
+    } else {
+      console.log("Configuration updated for standalone environment");
+    }
+  };
+
+  useEffect(() => {
+    const initialize = async () => {
+      try {
+        await initializeConfig();
+        const fileMakerStatus = await getFileMakerStatus();
+        setIsFileMaker(fileMakerStatus);
+      } catch (error) {
+        console.error('Error initializing config:', error);
+        setError('Failed to initialize configuration');
+      }
+    };
+    
+    initialize();
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Listen for progress updates from FileMaker
+    const handleProgressUpdate = (event) => {
+      const { text } = event.detail;
+      console.log("Received progress update:", text);
+      
+      // Update the last assistant message if it's a progress message
+      setMessages(prev => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage && lastMessage.role === 'assistant' &&
+            (typeof lastMessage.content === 'object' || lastMessage.content.includes('Thinking'))) {
+          return [...prev.slice(0, -1), {
+            role: 'assistant',
+            content: <ProgressText text={text} />
+          }];
+        }
+        return prev;
+      });
+    };
+
+    window.addEventListener('progressUpdate', handleProgressUpdate);
+    
+    return () => {
+      window.removeEventListener('progressUpdate', handleProgressUpdate);
+    };
+  }, []);
 
   const handleSubmit = async () => {
     if (!input.trim()) return;
@@ -58,79 +118,13 @@ const LLMChat = () => {
       setMessages(prev => [...prev, assistantMessage]);
 
       try {
-        // Check if we have a config from FileMaker
-        console.log("Checking for window.fmChatConfig:", window.fmChatConfig);
+        console.log(`Environment: ${isFileMaker ? 'FileMaker' : 'Standalone'}`);
         
-        // If no config exists in the window object, create a default one
-        if (!window.fmChatConfig) {
-          console.log("No FileMaker config found, creating default config");
-          window.fmChatConfig = {
-            apiKey: "demo-key",
-            endpoint: "https://api.example.com",
-            payload: {
-              messages: [
-                {
-                  role: "system",
-                  content: "You are a helpful AI assistant."
-                }
-              ]
-            }
-          };
-        }
+        // Use the sendMessage function which handles all the complexity
+        const result = await sendMessage(input);
         
-        // Create a deep clone of the config to avoid modifying the original
-        let config = JSON.parse(JSON.stringify(window.fmChatConfig));
-        
-        console.log("Using config:", config);
-        
-        // Validate the config
-        if (!config.payload || !config.payload.messages || !Array.isArray(config.payload.messages) || config.payload.messages.length === 0) {
-          throw new Error('Invalid config: payload.messages must be a non-empty array');
-        }
-        
-        // Validate that the first message is a system message
-        if (config.payload.messages[0].role !== 'system') {
-          throw new Error('Invalid config: first message must be a system message');
-        }
-        
-        // Call FileMaker script with the config and user input
-        console.log(`Calling FileMaker script "Make Call" with config:`, config);
-        
-        const result = await performFMScript({
-          script: "Make Call",
-          parameter: processMessagesWithSystemPrompt(config, input)
-        });
-        
-        console.log("FileMaker response:", result);
-        
-        // Extract the assistant's response content based on the response format
-        let assistantContent = "No response received from FileMaker.";
-        
-        // Handle different response formats from various LLM providers
-        if (result) {
-          console.log("Processing FileMaker response:", result);
-          
-          // OpenAI format
-          if (result.choices && result.choices.length > 0 && result.choices[0].message) {
-            assistantContent = result.choices[0].message.content;
-          }
-          // Ollama format
-          else if (result.message && result.message.content) {
-            assistantContent = result.message.content;
-          }
-          // Direct content field
-          else if (result.content) {
-            assistantContent = result.content;
-          }
-          
-          // Add the assistant's response to the fmChatConfig messages array
-          if (window.fmChatConfig && window.fmChatConfig.payload && window.fmChatConfig.payload.messages) {
-            window.fmChatConfig.payload.messages.push({
-              role: 'assistant',
-              content: assistantContent
-            });
-          }
-        }
+        // sendMessage returns the processed content directly
+        const assistantContent = result;
         
         // Update the UI with the response
         setMessages(prev => [...prev.slice(0, -1), {
@@ -139,20 +133,80 @@ const LLMChat = () => {
         }]);
         
       } catch (error) {
-        console.error(`Error calling FileMaker: ${error.message}`);
-        setError(error.message);
+        console.error(`Error calling API:`, error);
+        console.error('Error type:', typeof error);
+        console.error('Error message:', error.message);
+        console.error('Error toString:', error.toString());
+        
+        // Check if the error message looks like JSON
+        let errorMessage = error.message || error.toString() || 'Unknown error occurred';
+        
+        // If the error message looks like JSON, it might be a valid response being treated as an error
+        if (errorMessage.startsWith('{') && errorMessage.includes('"choices"')) {
+          console.warn('⚠️ ERROR MESSAGE LOOKS LIKE VALID JSON RESPONSE!');
+          console.warn('This suggests the valid response is being treated as an error somewhere.');
+          console.warn('Raw error message:', errorMessage);
+          
+          // Try to parse and process it as a valid response
+          try {
+            const parsedResponse = JSON.parse(errorMessage);
+            if (parsedResponse.choices && parsedResponse.choices[0] && parsedResponse.choices[0].message) {
+              console.log('✅ Successfully parsed JSON from error message');
+              const content = parsedResponse.choices[0].message.content;
+              setMessages(prev => [...prev.slice(0, -1), {
+                role: 'assistant',
+                content: content
+              }]);
+              return; // Exit early, don't show error
+            }
+          } catch (parseError) {
+            console.error('Failed to parse JSON from error message:', parseError);
+          }
+        }
+        
+        setError(errorMessage);
         setMessages(prev => [...prev.slice(0, -1), {
           role: 'assistant',
-          content: `Error: ${error.message}. Please try again.`
+          content: `Error: ${errorMessage}. Please try again.`
         }]);
       }
 
     } catch (err) {
       console.error('Error in chat completion:', err);
-      setError(err.message);
+      console.error('Outer error type:', typeof err);
+      console.error('Outer error message:', err.message);
+      console.error('Outer error toString:', err.toString());
+      
+      // Check if the error message looks like JSON
+      let errorMessage = err.message || err.toString() || 'Unknown error occurred';
+      
+      // If the error message looks like JSON, it might be a valid response being treated as an error
+      if (errorMessage.startsWith('{') && errorMessage.includes('"choices"')) {
+        console.warn('⚠️ OUTER ERROR MESSAGE LOOKS LIKE VALID JSON RESPONSE!');
+        console.warn('This suggests the valid response is being treated as an error somewhere.');
+        console.warn('Raw error message:', errorMessage);
+        
+        // Try to parse and process it as a valid response
+        try {
+          const parsedResponse = JSON.parse(errorMessage);
+          if (parsedResponse.choices && parsedResponse.choices[0] && parsedResponse.choices[0].message) {
+            console.log('✅ Successfully parsed JSON from outer error message');
+            const content = parsedResponse.choices[0].message.content;
+            setMessages(prev => [...prev.slice(0, -1), {
+              role: 'assistant',
+              content: content
+            }]);
+            return; // Exit early, don't show error
+          }
+        } catch (parseError) {
+          console.error('Failed to parse JSON from outer error message:', parseError);
+        }
+      }
+      
+      setError(errorMessage);
       setMessages(prev => [...prev.slice(0, -1), {
         role: 'assistant',
-        content: `Error: ${err.message}. Please try again.`
+        content: `Error: ${errorMessage}. Please try again.`
       }]);
     }
   };
@@ -303,6 +357,18 @@ const LLMChat = () => {
             <SendIcon />
           </IconButton>
           <IconButton
+            onClick={() => setConfigDialogOpen(true)}
+            color="primary"
+            sx={{
+              bgcolor: 'background.paper',
+              '&:hover': {
+                bgcolor: 'action.hover'
+              }
+            }}
+          >
+            <SettingsIcon />
+          </IconButton>
+          <IconButton
             onClick={() => setClearDialogOpen(true)}
             color="error"
             disabled={messages.length === 0}
@@ -350,6 +416,12 @@ const LLMChat = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ChatConfig
+        open={configDialogOpen}
+        onClose={() => setConfigDialogOpen(false)}
+        onSave={handleConfigSave}
+      />
     </Box>
   );
 };

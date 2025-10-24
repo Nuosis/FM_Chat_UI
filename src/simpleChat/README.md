@@ -73,6 +73,34 @@ The function will:
 3. Store the configuration in the window object for use by the LLMChat component
 4. Return the processed configuration
 
+## FileMaker Script Setup
+
+To use the chat with FileMaker, you need to create a script named "AI * Make Call" in your FileMaker database. This script should:
+
+1.  Accept a JSON parameter containing the configuration and user message.
+2.  Make an API call to the LLM endpoint specified in the configuration.
+3.  Return the LLM's response as a JSON object.
+
+Here's an example of what the "AI * Make Call" script might look like:
+
+```filemaker
+# Set Variable [ $config ; Get(ScriptParameter) ]
+# Set Variable [ $apiKey ; JSONGetElement ( $config ; "apiKey" ) ]
+# Set Variable [ $endpoint ; JSONGetElement ( $config ; "endpoint" ) ]
+# Set Variable [ $payload ; JSONGetElement ( $config ; "payload" ) ]
+# Set Variable [ $contentType ; "application/json" ]
+# Insert from URL [
+#   Target: $response ;
+#   URL: $endpoint ;
+#   cURL options: "-X POST --header \"Content-Type: application/json\" --header \"Authorization: Bearer " &amp; $apiKey &amp; "\" --data @" &amp; Quote ( $payload )
+#   ; Automatically encode URL: Off
+# ]
+# Set Variable [ $result ; JSONFormatElements ( $response ) ]
+# Exit Script [ Text Result: $result ]
+```
+
+**Note:** This is just an example. You may need to adjust the script based on your specific LLM provider and API requirements.
+
 ## Building for Production
 
 To build the application for production:

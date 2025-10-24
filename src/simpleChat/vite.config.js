@@ -5,7 +5,7 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
   server: {
-    port: 3000,
+    port: 3010,
     open: true
   },
   build: {
@@ -16,5 +16,10 @@ export default defineConfig({
         manualChunks: undefined
       }
     }
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.js'],
   }
 });

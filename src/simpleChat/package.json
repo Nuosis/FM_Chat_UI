@@ -7,22 +7,30 @@
     "start": "vite",
     "build": "vite build",
     "serve": "vite preview",
-    "run-chat": "./start.sh"
+    "run-chat": "./start.sh",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run"
   },
   "dependencies": {
-    "@mui/material": "^5.14.0",
     "@mui/icons-material": "^5.14.0",
+    "@mui/material": "^5.14.0",
     "@mui/system": "^5.14.0",
+    "fm-gofer": "^1.10.0",
+    "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^8.0.7",
-    "react-syntax-highlighter": "^15.5.0",
-    "prop-types": "^15.8.1",
-    "fm-gofer": "^1.10.0"
+    "react-syntax-highlighter": "^15.5.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@vitejs/plugin-react": "^4.0.3",
+    "jsdom": "^26.1.0",
     "vite": "^4.4.4",
-    "vite-plugin-singlefile": "^2.2.0"
+    "vite-plugin-singlefile": "^2.2.0",
+    "vitest": "^3.1.4"
   }
 }
